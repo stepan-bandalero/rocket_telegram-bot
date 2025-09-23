@@ -5,6 +5,11 @@ from config import settings
 from middlewares.db import DataBaseSessionMiddleware
 from handlers import start, admin
 
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parent))
+
 
 async def main():
     bot = Bot(
