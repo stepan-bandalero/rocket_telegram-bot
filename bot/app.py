@@ -1,9 +1,9 @@
 import asyncio
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
-from config import settings
-from middlewares.db import DataBaseSessionMiddleware
-from handlers import start, admin
+from .config import settings
+from .middlewares.db import DataBaseSessionMiddleware
+from .handlers import start, admin
 
 import sys
 from pathlib import Path
