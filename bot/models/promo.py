@@ -11,7 +11,6 @@ class PromoLink(Base):
     title = Column(Text, nullable=False)
     created_by = Column(BigInteger, nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
-
     referrals = relationship("PromoReferral", back_populates="promo")
 
 
