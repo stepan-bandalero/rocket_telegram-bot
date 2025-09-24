@@ -8,7 +8,7 @@ from aiogram.client.default import DefaultBotProperties
 
 from .config import settings
 from .middlewares.db import DataBaseSessionMiddleware
-from .handlers import start, admin, admin_promos, admin_channels
+from .handlers import start, admin, admin_promos, admin_channels, admin_broadcast
 
 sys.path.append(str(Path(__file__).resolve().parent))
 
@@ -35,6 +35,7 @@ async def main():
     dp.include_router(admin.router)
     dp.include_router(admin_promos.router)
     dp.include_router(admin_channels.router)
+    dp.include_router(admin_broadcast.router)
 
     logger.info("🚀 Бот запускается...")
 
