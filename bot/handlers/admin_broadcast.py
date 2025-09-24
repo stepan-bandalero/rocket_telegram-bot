@@ -1,89 +1,694 @@
-from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery
+# bot/handlers/broadcast.py (новый файл с улучшенной логикой)
+import asyncio
+
+from aiogram import Router, F, Bot
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
+from sqlalchemy import select
 
-from bot.db import SessionLocal
+from bot.db import async_session
 from bot.services.broadcast import BroadcastService
-from bot.models.broadcast_task import BroadcastTask
-from bot.config import settings
 from bot.states.broadcast_states import BroadcastStates
-
+from bot.utils.keyboards import (
+    broadcast_main_kb,
+    broadcast_constructor_kb,
+    buttons_management_kb,
+    button_type_kb,
+    broadcast_active_kb,
+    broadcast_control_kb
+)
 
 router = Router()
 
 
-@router.message(F.text == "/broadcast")
-async def start_broadcast(message: Message, state: FSMContext):
-    if message.from_user.id not in settings.admins:
-        return
-    await message.answer("Выберите тип рассылки: text, photo, video, video_note")
-    await state.set_state(BroadcastStates.waiting_type)
-
-
-@router.message(BroadcastStates.waiting_type)
-async def set_type(message: Message, state: FSMContext):
-    if message.text not in ["text", "photo", "video", "video_note"]:
-        await message.answer("Неверный тип, выберите: text, photo, video, video_note")
-        return
-    await state.update_data(content_type=message.text)
-    await message.answer("Введите текст рассылки (можно оставить пустым)")
-    await state.set_state(BroadcastStates.waiting_text)
-
-
-@router.message(BroadcastStates.waiting_text)
-async def set_text(message: Message, state: FSMContext):
-    await state.update_data(text=message.text)
-    data = await state.get_data()
-    if data["content_type"] == "text":
-        await message.answer("Подтвердите рассылку или добавьте кнопки")
-        await state.set_state(BroadcastStates.confirm)
-    else:
-        await message.answer("Отправьте media (URL или file_id)")
-        await state.set_state(BroadcastStates.waiting_media)
-
-
-
-
-
-@router.message(BroadcastStates.waiting_media)
-async def set_media(message: Message, state: FSMContext):
-    await state.update_data(media=message.text)
-    await message.answer("Добавить кнопки? (y/n)")
-    await state.set_state(BroadcastStates.waiting_buttons)
-
-
-@router.message(BroadcastStates.waiting_buttons)
-async def set_buttons(message: Message, state: FSMContext):
-    buttons = []
-    if message.text.lower() == "y":
-        await message.answer("Введите кнопки в формате: text|url или text|web_app_url (по одной в строке)")
-        # Здесь можно добавить отдельный FSM для добавления нескольких кнопок
-    await state.update_data(buttons=buttons)
-    await message.answer("Подтвердите рассылку")
-    await state.set_state(BroadcastStates.confirm)
-
-
-@router.message(BroadcastStates.confirm)
-async def confirm_broadcast(message: Message, state: FSMContext):
-    data = await state.get_data()
-    task = BroadcastTask(
-        content_type=data["content_type"],
-        text=data.get("text"),
-        media=data.get("media"),
-        buttons=data.get("buttons", [])
+@router.callback_query(F.data == "broadcast_main")
+async def broadcast_main(callback: CallbackQuery):
+    """Главное меню рассылок"""
+    await callback.message.edit_text(
+        "📊 **Управление рассылками**\n\n"
+        "Выберите действие:",
+        reply_markup=broadcast_main_kb()
     )
-    async with SessionLocal() as session:
-        session.add(task)
-        await session.commit()
-        await message.answer(f"✅ Рассылка #{task.id} создана и добавлена в очередь")
+
+
+@router.callback_query(F.data == "broadcast_constructor")
+async def broadcast_constructor(callback: CallbackQuery, state: FSMContext):
+    """Конструктор рассылки"""
+    user_id = callback.from_user.id
+
+    # Создаем или получаем черновик
+    if user_id not in BroadcastService.current_editing:
+        draft = await BroadcastService.create_draft(user_id)
+    else:
+        draft = BroadcastService.current_editing[user_id]
+
+    preview_text = await _generate_preview_text(draft)
+
+    await callback.message.edit_text(
+        f"🎨 **Конструктор рассылки**\n\n{preview_text}",
+        reply_markup=broadcast_constructor_kb(draft),
+        parse_mode="HTML"
+    )
+
+
+@router.callback_query(F.data.startswith("edit_"))
+async def edit_component(callback: CallbackQuery, state: FSMContext):
+    """Редактирование компонентов рассылки"""
+    user_id = callback.from_user.id
+    if user_id not in BroadcastService.current_editing:
+        await callback.answer("Черновик не найден!")
+        return
+
+    draft = BroadcastService.current_editing[user_id]
+
+    if callback.data == "edit_text":
+        await state.set_state(BroadcastStates.editing_text)
+        await callback.message.edit_text(
+            "✏️ **Редактирование текста**\n\n"
+            "Отправьте новый текст рассылки:",
+            reply_markup=broadcast_constructor_kb(draft, is_editing=True)
+        )
+
+    elif callback.data == "edit_media":
+        await state.set_state(BroadcastStates.editing_media)
+        await callback.message.edit_text(
+            "🖼️ **Редактирование медиа**\n\n"
+            "Отправьте фото или видео:",
+            reply_markup=broadcast_constructor_kb(draft, is_editing=True)
+        )
+
+    elif callback.data == "edit_buttons":
+        await callback.message.edit_text(
+            "🔘 **Управление кнопками**",
+            reply_markup=buttons_management_kb()
+        )
+
+
+@router.message(BroadcastStates.editing_text)
+async def process_text_edit(message: Message, state: FSMContext):
+    """Обработка нового текста"""
+    user_id = message.from_user.id
+    if user_id not in BroadcastService.current_editing:
+        return
+
+    draft = BroadcastService.current_editing[user_id]
+    draft.text = message.text
+
+    preview_text = await _generate_preview_text(draft)
+    await message.answer(
+        f"✅ **Текст обновлен!**\n\n{preview_text}",
+        reply_markup=broadcast_constructor_kb(draft),
+        parse_mode="HTML"
+    )
     await state.clear()
 
 
-@router.message(F.text.startswith("/stop_broadcast"))
-async def stop_broadcast(message: Message):
-    task_id = int(message.text.split()[-1])
-    if task_id in BroadcastService.stop_flags:
-        BroadcastService.stop_flags[task_id].set()
-        await message.answer(f"⏹ Рассылка #{task_id} остановлена")
+@router.message(BroadcastStates.editing_media)
+async def process_media_edit(message: Message, state: FSMContext):
+    """Обработка нового медиа"""
+    user_id = message.from_user.id
+    if user_id not in BroadcastService.current_editing:
+        return
+
+    draft = BroadcastService.current_editing[user_id]
+
+    if message.photo:
+        draft.content_type = "photo"
+        draft.media = message.photo[-1].file_id
+    elif message.video:
+        draft.content_type = "video"
+        draft.media = message.video.file_id
+    elif message.video_note:
+        draft.content_type = "video_note"
+        draft.media = message.video_note.file_id
+
+    preview_text = await _generate_preview_text(draft)
+    await message.answer(
+        f"✅ **Медиа обновлено!**\n\n{preview_text}",
+        reply_markup=broadcast_constructor_kb(draft),
+        parse_mode="HTML"
+    )
+    await state.clear()
+
+
+@router.callback_query(F.data.startswith("set_type_"))
+async def set_content_type(callback: CallbackQuery):
+    """Установка типа контента"""
+    user_id = callback.from_user.id
+    if user_id not in BroadcastService.current_editing:
+        await callback.answer("Черновик не найден!")
+        return
+
+    draft = BroadcastService.current_editing[user_id]
+    content_type = callback.data.replace("set_type_", "")
+    draft.content_type = content_type
+
+    # Очищаем медиа при переходе на текст
+    if content_type == "text":
+        draft.media = None
+
+    preview_text = await _generate_preview_text(draft)
+    await callback.message.edit_text(
+        f"✅ **Тип контента изменен!**\n\n{preview_text}",
+        reply_markup=broadcast_constructor_kb(draft),
+        parse_mode="HTML"
+    )
+
+
+@router.callback_query(F.data == "preview_broadcast")
+async def preview_broadcast(callback: CallbackQuery):
+    """Предпросмотр рассылки"""
+    user_id = callback.from_user.id
+    if user_id not in BroadcastService.current_editing:
+        await callback.answer("Черновик не найден!")
+        return
+
+    draft = BroadcastService.current_editing[user_id]
+
+    try:
+        # Отправляем предпросмотр самому себе
+        if draft.content_type == "text":
+            await callback.message.answer(draft.text, parse_mode="HTML")
+        elif draft.content_type == "photo":
+            await callback.message.answer_photo(draft.media, caption=draft.text, parse_mode="HTML")
+        elif draft.content_type == "video":
+            await callback.message.answer_video(draft.media, caption=draft.text, parse_mode="HTML")
+        elif draft.content_type == "video_note":
+            await callback.message.answer_video_note(draft.media)
+            if draft.text:
+                await callback.message.answer(draft.text, parse_mode="HTML")
+
+        await callback.answer("Предпросмотр отправлен!")
+    except Exception as e:
+        await callback.answer(f"Ошибка: {str(e)}")
+
+
+async def _generate_preview_text(draft) -> str:
+    """Генерирует текст предпросмотра"""
+    type_icons = {
+        "text": "📝", "photo": "📷",
+        "video": "🎥", "video_note": "📹"
+    }
+
+    text = (
+        f"{type_icons.get(draft.content_type, '📝')} **Тип:** {draft.content_type}\n"
+        f"📄 **Текст:** {draft.text[:100] + '...' if len(draft.text) > 100 else draft.text}\n"
+    )
+
+    if draft.media:
+        text += f"🖼️ **Медиа:** ✅\n"
+
+    text += f"🔘 **Кнопки:** {len(draft.buttons)} шт.\n"
+
+    return text
+
+
+# bot/handlers/broadcast.py (продолжение)
+
+@router.callback_query(F.data == "add_button")
+async def add_button_start(callback: CallbackQuery, state: FSMContext):
+    """Начало добавления кнопки"""
+    await callback.message.edit_text(
+        "🔘 **Добавление кнопки**\n\n"
+        "Выберите тип кнопки:",
+        reply_markup=button_type_kb()
+    )
+
+
+@router.callback_query(F.data == "button_type_url")
+async def add_url_button(callback: CallbackQuery, state: FSMContext):
+    """Добавление URL-кнопки"""
+    await state.set_state(BroadcastStates.editing_buttons)
+    await state.update_data(button_type="url")
+
+    await callback.message.edit_text(
+        "🔗 **Добавление URL-кнопки**\n\n"
+        "Отправьте текст кнопки и URL через запятую:\n"
+        "Пример: <code>Мой сайт, https://example.com</code>",
+        parse_mode="HTML"
+    )
+
+
+@router.callback_query(F.data == "button_type_webapp")
+async def add_webapp_button(callback: CallbackQuery, state: FSMContext):
+    """Добавление Web App кнопки"""
+    await state.set_state(BroadcastStates.editing_buttons)
+    await state.update_data(button_type="web_app")
+
+    await callback.message.edit_text(
+        "⚡ **Добавление Web App кнопки**\n\n"
+        "Отправьте текст кнопки и URL Web App через запятую:\n"
+        "Пример: <code>Открыть приложение, https://example.com</code>",
+        parse_mode="HTML"
+    )
+
+
+@router.message(BroadcastStates.editing_buttons)
+async def process_button_add(message: Message, state: FSMContext):
+    """Обработка добавления кнопки"""
+    user_id = message.from_user.id
+    if user_id not in BroadcastService.current_editing:
+        await message.answer("Черновик не найден!")
+        return
+
+    data = await state.get_data()
+    button_type = data.get("button_type", "url")
+
+    try:
+        parts = message.text.split(',', 1)
+        if len(parts) != 2:
+            raise ValueError("Неверный формат")
+
+        text = parts[0].strip()
+        url = parts[1].strip()
+
+        draft = BroadcastService.current_editing[user_id]
+
+        if button_type == "url":
+            new_button = {"text": text, "url": url}
+        else:  # web_app
+            new_button = {"text": text, "web_app": {"url": url}}
+
+        draft.buttons.append(new_button)
+
+        await message.answer(
+            f"✅ **Кнопка добавлена!**\n\n"
+            f"Текст: {text}\n"
+            f"URL: {url}\n\n"
+            f"Всего кнопок: {len(draft.buttons)}",
+            reply_markup=buttons_management_kb()
+        )
+
+    except Exception as e:
+        await message.answer(
+            "❌ **Ошибка формата!**\n\n"
+            "Пожалуйста, используйте формат:\n"
+            "<code>Текст кнопки, https://example.com</code>",
+            parse_mode="HTML"
+        )
+
+    await state.clear()
+
+
+@router.callback_query(F.data == "edit_buttons_list")
+async def edit_buttons_list(callback: CallbackQuery):
+    """Редактирование списка кнопок"""
+    user_id = callback.from_user.id
+    if user_id not in BroadcastService.current_editing:
+        await callback.answer("Черновик не найден!")
+        return
+
+    draft = BroadcastService.current_editing[user_id]
+
+    if not draft.buttons:
+        await callback.answer("Нет кнопок для редактирования!")
+        return
+
+    buttons_text = "\n".join([
+        f"{i + 1}. {btn['text']} - {btn.get('url', btn.get('web_app', {}).get('url', 'N/A'))}"
+        for i, btn in enumerate(draft.buttons)
+    ])
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        *[[InlineKeyboardButton(text=f"❌ Удалить {i + 1}", callback_data=f"remove_button_{i}")]
+          for i in range(len(draft.buttons))],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_buttons_management")]
+    ])
+
+    await callback.message.edit_text(
+        f"🔘 **Редактирование кнопок**\n\n{buttons_text}",
+        reply_markup=keyboard
+    )
+
+
+@router.callback_query(F.data.startswith("remove_button_"))
+async def remove_button(callback: CallbackQuery):
+    """Удаление кнопки"""
+    user_id = callback.from_user.id
+    if user_id not in BroadcastService.current_editing:
+        await callback.answer("Черновик не найден!")
+        return
+
+    button_index = int(callback.data.replace("remove_button_", ""))
+    draft = BroadcastService.current_editing[user_id]
+
+    if 0 <= button_index < len(draft.buttons):
+        removed_button = draft.buttons.pop(button_index)
+        await callback.answer(f"Кнопка '{removed_button['text']}' удалена!")
+
+        # Обновляем список кнопок
+        await edit_buttons_list(callback)
     else:
-        await message.answer("❌ Нет такой активной рассылки")
+        await callback.answer("Кнопка не найдена!")
+
+
+@router.callback_query(F.data == "clear_buttons")
+async def clear_buttons(callback: CallbackQuery):
+    """Очистка всех кнопок"""
+    user_id = callback.from_user.id
+    if user_id not in BroadcastService.current_editing:
+        await callback.answer("Черновик не найден!")
+        return
+
+    draft = BroadcastService.current_editing[user_id]
+    draft.buttons.clear()
+
+    await callback.message.edit_text(
+        "✅ **Все кнопки очищены!**",
+        reply_markup=buttons_management_kb()
+    )
+
+
+@router.callback_query(F.data == "start_broadcast")
+async def start_broadcast(callback: CallbackQuery):
+    """Запуск рассылки"""
+    user_id = callback.from_user.id
+    if user_id not in BroadcastService.current_editing:
+        await callback.answer("Черновик не найден!")
+        return
+
+    draft = BroadcastService.current_editing[user_id]
+
+    # Валидация
+    if not draft.text and draft.content_type != "video_note":
+        await callback.answer("Текст рассылки не может быть пустым!")
+        return
+
+    if draft.content_type in ["photo", "video"] and not draft.media:
+        await callback.answer("Необходимо добавить медиа!")
+        return
+
+    # Запрашиваем подтверждение
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+    confirm_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Да, запустить", callback_data="confirm_broadcast")],
+        [InlineKeyboardButton(text="❌ Отменить", callback_data="back_constructor")]
+    ])
+
+    await callback.message.edit_text(
+        "🚀 **Подтверждение запуска рассылки**\n\n"
+        "Вы уверены, что хотите запустить рассылку?\n"
+        "Это действие нельзя отменить.\n\n"
+        f"Тип: {draft.content_type}\n"
+        f"Кнопок: {len(draft.buttons)}",
+        reply_markup=confirm_kb
+    )
+
+
+@router.callback_query(F.data == "confirm_broadcast")
+async def confirm_broadcast(callback: CallbackQuery, bot: Bot):
+    """Подтверждение и запуск рассылки"""
+    user_id = callback.from_user.id
+    if user_id not in BroadcastService.current_editing:
+        await callback.answer("Черновик не найден!")
+        return
+
+    draft = BroadcastService.current_editing[user_id]
+
+    # Получаем список пользователей для рассылки
+    from bot.models.users import User
+    async with async_session as session:
+        result = await session.execute(select(User.telegram_id).where(User.is_active == True))
+        users = [row[0] for row in result.all()]
+
+    if not users:
+        await callback.answer("Нет пользователей для рассылки!")
+        return
+
+    # Сохраняем задачу в БД
+    draft.status = "pending"
+    draft.total = len(users)
+
+    async with async_session() as session:
+        session.add(draft)
+        await session.commit()
+        await session.refresh(draft)
+
+    # Запускаем рассылку в фоне
+    asyncio.create_task(BroadcastService.send_task(bot, draft, users))
+
+    # Убираем черновик из редактирования
+    BroadcastService.current_editing.pop(user_id, None)
+
+    await callback.message.edit_text(
+        "✅ **Рассылка запущена!**\n\n"
+        f"Получателей: {len(users)}\n"
+        f"ID рассылки: #{draft.id}\n\n"
+        "Отслеживать прогресс можно в разделе 'Активные рассылки'",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📊 Активные рассылки", callback_data="broadcast_active")],
+            [InlineKeyboardButton(text="⬅️ В главное меню", callback_data="broadcast_main")]
+        ])
+    )
+
+
+@router.callback_query(F.data == "broadcast_active")
+async def broadcast_active_list(callback: CallbackQuery):
+    """Список активных рассылок"""
+    from bot.models.broadcast_task import BroadcastTask
+    from sqlalchemy import select
+
+    async with async_session() as session:
+        result = await session.execute(
+            select(BroadcastTask).where(
+                BroadcastTask.status.in_(["pending", "sending"])
+            ).order_by(BroadcastTask.created_at.desc())
+        )
+        tasks = result.scalars().all()
+
+    if not tasks:
+        await callback.message.edit_text(
+            "📊 **Активные рассылки**\n\n"
+            "Нет активных рассылок.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="⬅️ Назад", callback_data="broadcast_main")]
+            ])
+        )
+        return
+
+    await callback.message.edit_text(
+        f"📊 **Активные рассылки**\n\nНайдено: {len(tasks)}",
+        reply_markup=broadcast_active_kb(tasks)
+    )
+
+
+@router.callback_query(F.data.startswith("broadcast_info_"))
+async def broadcast_info(callback: CallbackQuery):
+    """Информация о конкретной рассылке"""
+    task_id = int(callback.data.replace("broadcast_info_", ""))
+
+    from bot.models.broadcast_task import BroadcastTask
+    from sqlalchemy import select
+
+    async with async_session() as session:
+        result = await session.execute(select(BroadcastTask).where(BroadcastTask.id == task_id))
+        task = result.scalar_one_or_none()
+
+    if not task:
+        await callback.answer("Рассылка не найдена!")
+        return
+
+    status_icons = {
+        "pending": "⏳", "sending": "🟢",
+        "stopped": "🛑", "done": "✅", "draft": "📝"
+    }
+
+    progress = f"{task.sent}/{task.total}" if task.total > 0 else "0/0"
+    percentage = (task.sent / task.total * 100) if task.total > 0 else 0
+
+    info_text = (
+        f"📋 **Информация о рассылке #{task.id}**\n\n"
+        f"📊 **Статус:** {status_icons.get(task.status, '❓')} {task.status}\n"
+        f"📈 **Прогресс:** {progress} ({percentage:.1f}%)\n"
+        f"❌ **Ошибки:** {task.failed}\n"
+        f"📝 **Тип:** {task.content_type}\n"
+        f"🕒 **Создана:** {task.created_at.strftime('%d.%m.%Y %H:%M')}\n"
+        f"🔘 **Кнопок:** {len(task.buttons)}"
+    )
+
+    await callback.message.edit_text(
+        info_text,
+        reply_markup=broadcast_control_kb(task.id)
+    )
+
+
+@router.callback_query(F.data.startswith("stop_broadcast_"))
+async def stop_broadcast(callback: CallbackQuery):
+    """Остановка рассылки"""
+    task_id = int(callback.data.replace("stop_broadcast_", ""))
+
+    from bot.models.broadcast_task import BroadcastTask
+    from sqlalchemy import select, update
+
+    async with async_session() as session:
+        # Останавливаем рассылку
+        await BroadcastService.stop_task(task_id)
+
+        # Обновляем статус в БД
+        await session.execute(
+            update(BroadcastTask)
+            .where(BroadcastTask.id == task_id)
+            .values(status="stopped")
+        )
+        await session.commit()
+
+    await callback.answer("✅ Рассылка остановлена!")
+    await broadcast_info(callback)  # Обновляем информацию
+
+
+@router.callback_query(F.data == "broadcast_history")
+async def broadcast_history(callback: CallbackQuery):
+    """История рассылок"""
+    from bot.models.broadcast_task import BroadcastTask
+    from sqlalchemy import select
+
+    async with async_session() as session:
+        result = await session.execute(
+            select(BroadcastTask)
+            .where(BroadcastTask.status.in_(["done", "stopped"]))
+            .order_by(BroadcastTask.created_at.desc())
+            .limit(10)
+        )
+        tasks = result.scalars().all()
+
+    if not tasks:
+        await callback.message.edit_text(
+            "📜 **История рассылок**\n\n"
+            "Нет завершенных рассылок.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="⬅️ Назад", callback_data="broadcast_main")]
+            ])
+        )
+        return
+
+    history_text = "📜 **История рассылок**\n\n"
+    for task in tasks:
+        status_icon = "✅" if task.status == "done" else "🛑"
+        history_text += (
+            f"{status_icon} #{task.id} - {task.sent}/{task.total} "
+            f"({task.created_at.strftime('%d.%m.%Y')})\n"
+        )
+
+    await callback.message.edit_text(
+        history_text,
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="broadcast_main")]
+        ])
+    )
+
+
+@router.callback_query(F.data == "save_draft")
+async def save_draft(callback: CallbackQuery):
+    """Сохранение черновика"""
+    user_id = callback.from_user.id
+    if user_id not in BroadcastService.current_editing:
+        await callback.answer("Черновик не найден!")
+        return
+
+    draft = BroadcastService.current_editing[user_id]
+    draft.status = "draft"
+
+    async with async_session() as session:
+        session.add(draft)
+        await session.commit()
+        await session.refresh(draft)
+
+    await callback.answer(f"✅ Черновик сохранен! ID: #{draft.id}")
+
+
+@router.callback_query(F.data == "save_editing")
+async def save_editing(callback: CallbackQuery, state: FSMContext):
+    """Сохранение редактирования"""
+    await state.clear()
+    user_id = callback.from_user.id
+
+    if user_id not in BroadcastService.current_editing:
+        await callback.answer("Черновик не найден!")
+        return
+
+    draft = BroadcastService.current_editing[user_id]
+    preview_text = await _generate_preview_text(draft)
+
+    await callback.message.edit_text(
+        f"✅ **Изменения сохранены!**\n\n{preview_text}",
+        reply_markup=broadcast_constructor_kb(draft),
+        parse_mode="HTML"
+    )
+
+
+@router.callback_query(F.data == "cancel_editing")
+async def cancel_editing(callback: CallbackQuery, state: FSMContext):
+    """Отмена редактирования"""
+    await state.clear()
+    user_id = callback.from_user.id
+
+    if user_id not in BroadcastService.current_editing:
+        await callback.answer("Черновик не найден!")
+        return
+
+    draft = BroadcastService.current_editing[user_id]
+    preview_text = await _generate_preview_text(draft)
+
+    await callback.message.edit_text(
+        f"🎨 **Конструктор рассылки**\n\n{preview_text}",
+        reply_markup=broadcast_constructor_kb(draft),
+        parse_mode="HTML"
+    )
+
+
+# Навигационные обработчики
+@router.callback_query(F.data == "back_constructor")
+async def back_to_constructor(callback: CallbackQuery):
+    """Возврат в конструктор"""
+    await broadcast_constructor(callback, None)
+
+
+@router.callback_query(F.data == "back_buttons_management")
+async def back_to_buttons_management(callback: CallbackQuery):
+    """Возврат к управлению кнопками"""
+    await callback.message.edit_text(
+        "🔘 **Управление кнопками**",
+        reply_markup=buttons_management_kb()
+    )
+
+
+@router.callback_query(F.data == "stop_all_broadcasts")
+async def stop_all_broadcasts(callback: CallbackQuery):
+    """Остановка всех рассылок"""
+    from bot.models.broadcast_task import BroadcastTask
+    from sqlalchemy import select, update
+
+    async with async_session() as session:
+        # Останавливаем все активные рассылки
+        result = await session.execute(
+            select(BroadcastTask).where(BroadcastTask.status.in_(["pending", "sending"]))
+        )
+        tasks = result.scalars().all()
+
+        for task in tasks:
+            await BroadcastService.stop_task(task.id)
+            await session.execute(
+                update(BroadcastTask)
+                .where(BroadcastTask.id == task.id)
+                .values(status="stopped")
+            )
+
+        await session.commit()
+
+    await callback.answer(f"✅ Остановлено {len(tasks)} рассылок!")
+    await broadcast_active_list(callback)
+
+
+@router.message(F.photo | F.video | F.video_note)
+async def handle_media_message(message: Message, state: FSMContext):
+    """Обработка медиа-сообщений для конструктора"""
+    current_state = await state.get_state()
+    if current_state != BroadcastStates.editing_media.state:
+        return
+
+    user_id = message.from_user.id
+    if user_id not in BroadcastService.current_editing:
+        return
+
+    await process_media_edit(message, state)

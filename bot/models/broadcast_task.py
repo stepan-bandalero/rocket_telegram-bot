@@ -1,5 +1,5 @@
+# bot/models/broadcast_task.py
 from sqlalchemy import Column, Integer, Text, Boolean, TIMESTAMP, JSON, func
-from sqlalchemy.dialects.postgresql import BIGINT
 from bot.db import Base
 
 
