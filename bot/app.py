@@ -20,7 +20,7 @@ async def main():
     dp = Dispatcher()
 
     # Middleware для сессии
-    # dp.message.middleware(DataBaseSessionMiddleware())
+
     dp.update.middleware(DataBaseSessionMiddleware())
 
     # Роутеры
