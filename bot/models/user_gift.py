@@ -2,7 +2,7 @@ from sqlalchemy import Column, BigInteger, Text, TIMESTAMP, ForeignKey, func
 from sqlalchemy.orm import relationship
 from bot.db import Base
 from bot.models.gift_catalog import GiftCatalog
-from bot.models.gift_staking import GiftStaking  # noqa
+from bot.models.gift_stakings import GiftStaking  # noqa
 
 
 
