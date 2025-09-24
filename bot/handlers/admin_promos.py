@@ -50,8 +50,8 @@ async def list_promos(message: Message, session: AsyncSession):
     for promo in promos:
         text += (
             f"▫️ <b>{promo['title']}</b>\n"
+            f"🔗 <b>Ссылка:</b> <code>{settings.bot_href}?start={promo['code']}</code>\n"
             f"   🔑 Код: <code>{promo['code']}</code>\n"
-            
             f"   👥 Переходов: {promo['referrals_count']}\n"
             f"   🟢 Активных: {promo['active_users']}\n\n"
         )
@@ -63,14 +63,17 @@ async def delete_promo(message: Message, session: AsyncSession):
     if message.from_user.id not in settings.admins:
         return
     try:
-        _, promo_id = message.text.split(maxsplit=1)
-        promo_id = int(promo_id)
+        _, promo_code = message.text.split(maxsplit=1)
+        promo_code = promo_code.strip()
     except ValueError:
-        await message.answer("❌ Используй: /delete_promo <id>")
+        # Экранируем спецсимволы HTML или используем Markdown
+        await message.answer("❌ Используй: /delete_promo код", parse_mode="HTML")
         return
 
-    deleted = await PromoService.delete_promo(session, promo_id)
+    deleted = await PromoService.delete_promo(session, promo_code)
     if deleted:
-        await message.answer(f"🗑 Промо <code>{promo_id}</code> удален.")
+        await message.answer(
+            f"🗑 Промо с кодом <code>{promo_code}</code> удален.", parse_mode="HTML"
+        )
     else:
-        await message.answer("⚠ Промо не найден.")
+        await message.answer("⚠ Промо не найден.", parse_mode="HTML")

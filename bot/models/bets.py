@@ -1,4 +1,6 @@
 from sqlalchemy import Column, String, BigInteger, Boolean, Integer, ForeignKey, TIMESTAMP, Text
+from sqlalchemy.orm import relationship
+
 from bot.db import Base
 
 
@@ -20,3 +22,6 @@ class Bet(Base):
     final_gift_id = Column(String, ForeignKey("gift_catalog.id"))
     final_gift_title = Column(Text)
     final_gift_image_url = Column(Text)
+
+
+    user_gift = relationship("UserGift", back_populates="bets")  # <-- ссылка на UserGift

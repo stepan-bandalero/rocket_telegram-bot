@@ -44,6 +44,8 @@ class PromoService:
         # для каждого промо считаем активных пользователей
         data = []
         for promo_id, title, code, referrals_count, users_count in promos:
+            from sqlalchemy import or_
+
             active_query = await session.execute(
                 select(func.count())
                 .select_from(User)
@@ -52,11 +54,15 @@ class PromoService:
                     User.telegram_id.in_(
                         select(PromoReferral.user_id).where(PromoReferral.promo_id == promo_id)
                     ),
-                    ((UserGift.id is not None) | (User.telegram_id.in_(
-                        select(User.telegram_id).where(User.ton_balance > 0)
-                    )))
+                    or_(
+                        UserGift.id.isnot(None),
+                        User.telegram_id.in_(
+                            select(User.telegram_id).where(User.ton_balance > 0)
+                        )
+                    )
                 )
             )
+
             active_users = active_query.scalar() or 0
 
             data.append({
@@ -69,10 +75,14 @@ class PromoService:
         return data
 
     @staticmethod
-    async def delete_promo(session: AsyncSession, promo_id: int):
-        promo = await session.get(PromoLink, promo_id)
+    async def delete_promo(session: AsyncSession, promo_code: str):
+        result = await session.execute(
+            select(PromoLink).where(PromoLink.code == promo_code)
+        )
+        promo = result.scalars().first()
         if promo:
             await session.delete(promo)
             await session.commit()
             return True
         return False
+

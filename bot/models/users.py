@@ -9,5 +9,6 @@ class User(Base):
     username = Column(Text, nullable=True)
     first_name = Column(Text, nullable=True)
     photo_url = Column(Text, nullable=True)
+    ton_balance = Column(BigInteger)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     referred_by = Column(BigInteger, ForeignKey("users.telegram_id"), nullable=True)
