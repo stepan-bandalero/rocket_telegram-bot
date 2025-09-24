@@ -2,6 +2,8 @@ from sqlalchemy import Column, BigInteger, Text, TIMESTAMP, ForeignKey, func
 from sqlalchemy.orm import relationship
 from bot.db import Base
 from bot.models.gift_catalog import GiftCatalog
+from bot.models.gift_staking import GiftStaking  # noqa
+
 
 
 
@@ -21,4 +23,4 @@ class UserGift(Base):
     user = relationship("User", backref="gifts")
     gift_catalog = relationship(GiftCatalog, backref="user_gifts")
     bets = relationship("Bet", back_populates="user_gift")
-    gift_stakings = relationship("GiftStaking", back_populates="user_gift")
+    gift_stakings = relationship(GiftStaking, back_populates="user_gift")
