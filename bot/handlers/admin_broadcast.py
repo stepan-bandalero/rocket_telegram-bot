@@ -1,8 +1,8 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-from sqlalchemy.ext.asyncio import async_session
 
+from bot.db import SessionLocal
 from bot.services.broadcast import BroadcastService
 from bot.models.broadcast_task import BroadcastTask
 from bot.config import settings
@@ -42,6 +42,9 @@ async def set_text(message: Message, state: FSMContext):
         await state.set_state(BroadcastStates.waiting_media)
 
 
+
+
+
 @router.message(BroadcastStates.waiting_media)
 async def set_media(message: Message, state: FSMContext):
     await state.update_data(media=message.text)
@@ -69,7 +72,7 @@ async def confirm_broadcast(message: Message, state: FSMContext):
         media=data.get("media"),
         buttons=data.get("buttons", [])
     )
-    async with async_session() as session:
+    async with SessionLocal() as session:
         session.add(task)
         await session.commit()
         await message.answer(f"✅ Рассылка #{task.id} создана и добавлена в очередь")
