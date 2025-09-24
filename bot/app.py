@@ -1,15 +1,23 @@
 import asyncio
-from aiogram import Bot, Dispatcher
-from aiogram.client.default import DefaultBotProperties
-from .config import settings
-from .middlewares.db import DataBaseSessionMiddleware
-from .handlers import start, admin, admin_promos
-
-
+import logging
 import sys
 from pathlib import Path
 
+from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
+
+from .config import settings
+from .middlewares.db import DataBaseSessionMiddleware
+from .handlers import start, admin, admin_promos, admin_channels
+
 sys.path.append(str(Path(__file__).resolve().parent))
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+logger = logging.getLogger(__name__)
 
 
 async def main():
@@ -20,17 +28,26 @@ async def main():
     dp = Dispatcher()
 
     # Middleware для сессии
-
     dp.update.middleware(DataBaseSessionMiddleware())
 
     # Роутеры
-
     dp.include_router(start.router)
     dp.include_router(admin.router)
     dp.include_router(admin_promos.router)
+    dp.include_router(admin_channels.router)
 
-    await dp.start_polling(bot)
+    logger.info("🚀 Бот запускается...")
+
+    try:
+        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+    finally:
+        logger.info("🛑 Остановка бота...")
+        await bot.session.close()
+        logger.info("✅ Сессия закрыта")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("⚠️ Бот был остановлен вручную")
