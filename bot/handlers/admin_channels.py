@@ -16,7 +16,9 @@ async def add_channel(message: Message, session: AsyncSession):
         _, tg_id, title, url = message.text.split(maxsplit=3)
         tg_id = int(tg_id)
     except ValueError:
-        await message.answer("❌ Используй: /add_channel <tg_id> <title> <url>")
+        await message.answer(
+            "❌ Используй: <code>/add_channel tg_id title url</code>", parse_mode="HTML"
+        )
         return
 
     channel = await ChannelService.add_channel(session, tg_id, title, url)
@@ -32,7 +34,9 @@ async def delete_channel(message: Message, session: AsyncSession):
         _, tg_id = message.text.split(maxsplit=1)
         tg_id = int(tg_id)
     except ValueError:
-        await message.answer("❌ Используй: /delete_channel <tg_id>")
+        await message.answer(
+            "❌ Используй: <code>/delete_channel tg_id</code>", parse_mode="HTML"
+        )
         return
 
     deleted = await ChannelService.delete_channel(session, tg_id)

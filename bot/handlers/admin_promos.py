@@ -67,7 +67,7 @@ async def delete_promo(message: Message, session: AsyncSession):
         promo_code = promo_code.strip()
     except ValueError:
         # Экранируем спецсимволы HTML или используем Markdown
-        await message.answer("❌ Используй: /delete_promo код", parse_mode="HTML")
+        await message.answer("❌ Используй: <code>/delete_promo &lt;код&gt;</code>", parse_mode="HTML")
         return
 
     deleted = await PromoService.delete_promo(session, promo_code)
