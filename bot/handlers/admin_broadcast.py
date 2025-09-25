@@ -409,7 +409,7 @@ async def confirm_broadcast(callback: CallbackQuery, bot: Bot):
     # Получаем список пользователей для рассылки
     from bot.models.users import User
     async with SessionLocal() as session:
-        result = await session.execute(select(User.telegram_id).where(User.is_active == True))
+        result = await session.execute(select(User.telegram_id))
         users = [row[0] for row in result.all()]
 
     if not users:
