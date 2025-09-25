@@ -41,6 +41,12 @@ def build_users_keyboard(current_page: int, total_pages: int) -> InlineKeyboardM
         return InlineKeyboardMarkup(inline_keyboard=[])
 
 
+def format_user_line(index: int, user: User) -> str:
+    username = f"@{user.username}" if user.username else "—"
+    ref = f"🟢 Реферал: {user.referred_by}" if user.referred_by else ""
+    balance = f"💰 {user.ton_balance / 100:.2f} TON"  # если баланс в сотнях
+    return f"{index:02d}. <b>{user.first_name}</b> {username} | {balance} {ref}"
+
 
 @router.message(F.text.startswith("/users"))
 async def list_users(message: Message):
@@ -50,11 +56,10 @@ async def list_users(message: Message):
 
     total_pages = max((total_count + PAGE_SIZE - 1) // PAGE_SIZE, 1)
 
-    text = f"📋 Пользователи (страница {page}/{total_pages}):\n\n"
-    for u in users:
-        ref = f"(реферал: {u.referred_by})" if u.referred_by else ""
-        username = f"@{u.username}" if u.username else ""
-        text += f"<b>{u.first_name}</b> {username} — ID: <code>{u.telegram_id}</code>, Баланс: <b>{u.ton_balance}</b> {ref}\n"
+    header = f"📋 <b>Пользователи</b> (страница {page}/{total_pages})\n"
+    separator = "―" * 40 + "\n"
+    user_lines = [format_user_line(i + 1 + (page - 1) * PAGE_SIZE, u) for i, u in enumerate(users)]
+    text = header + separator + "\n".join(user_lines) + "\n" + separator
 
     kb = build_users_keyboard(page, total_pages)
     await message.answer(text, reply_markup=kb, parse_mode="HTML")
@@ -68,11 +73,10 @@ async def paginate_users(cb: CallbackQuery):
 
     total_pages = max((total_count + PAGE_SIZE - 1) // PAGE_SIZE, 1)
 
-    text = f"📋 Пользователи (страница {page}/{total_pages}):\n\n"
-    for u in users:
-        ref = f"(реферал: {u.referred_by})" if u.referred_by else ""
-        username = f"@{u.username}" if u.username else ""
-        text += f"<b>{u.first_name}</b> {username} — ID: <code>{u.telegram_id}</code>, Баланс: <b>{u.ton_balance}</b> {ref}\n"
+    header = f"📋 <b>Пользователи</b> (страница {page}/{total_pages})\n"
+    separator = "―" * 40 + "\n"
+    user_lines = [format_user_line(i + 1 + (page - 1) * PAGE_SIZE, u) for i, u in enumerate(users)]
+    text = header + separator + "\n".join(user_lines) + "\n" + separator
 
     kb = build_users_keyboard(page, total_pages)
     await cb.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
