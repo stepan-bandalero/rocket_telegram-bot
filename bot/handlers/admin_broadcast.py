@@ -84,54 +84,6 @@ async def edit_component(callback: CallbackQuery, state: FSMContext):
             reply_markup=buttons_management_kb()
         )
 
-#
-# @router.message(BroadcastStates.editing_text)
-# async def process_text_edit(message: Message, state: FSMContext):
-#     """Обработка нового текста"""
-#     user_id = message.from_user.id
-#     if user_id not in BroadcastService.current_editing:
-#         return
-#
-#     draft = BroadcastService.current_editing[user_id]
-#     draft.text = message.text
-#
-#     preview_text = await _generate_preview_text(draft)
-#     await message.answer(
-#         f"✅ **Текст обновлен!**\n\n{preview_text}",
-#         reply_markup=broadcast_constructor_kb(draft),
-#         parse_mode="HTML"
-#     )
-#     await state.clear()
-#
-#
-#
-#
-# @router.message(BroadcastStates.editing_media)
-# async def process_media_edit(message: Message, state: FSMContext):
-#     """Обработка нового медиа"""
-#     user_id = message.from_user.id
-#     if user_id not in BroadcastService.current_editing:
-#         return
-#
-#     draft = BroadcastService.current_editing[user_id]
-#
-#     if message.photo:
-#         draft.content_type = "photo"
-#         draft.media = message.photo[-1].file_id
-#     elif message.video:
-#         draft.content_type = "video"
-#         draft.media = message.video.file_id
-#     elif message.video_note:
-#         draft.content_type = "video_note"
-#         draft.media = message.video_note.file_id
-#
-#     preview_text = await _generate_preview_text(draft)
-#     await message.answer(
-#         f"✅ **Медиа обновлено!**\n\n{preview_text}",
-#         reply_markup=broadcast_constructor_kb(draft),
-#         parse_mode="HTML"
-#     )
-#     await state.clear()
 
 
 # bot/handlers/broadcast.py
@@ -224,34 +176,6 @@ async def set_content_type(callback: CallbackQuery):
         parse_mode="HTML"
     )
 
-
-# @router.callback_query(F.data == "preview_broadcast")
-# async def preview_broadcast(callback: CallbackQuery):
-#     """Предпросмотр рассылки"""
-#     user_id = callback.from_user.id
-#     if user_id not in BroadcastService.current_editing:
-#         await callback.answer("Черновик не найден!")
-#         return
-#
-#     draft = BroadcastService.current_editing[user_id]
-#
-#     try:
-#         # Отправляем предпросмотр самому себе
-#         if draft.content_type == "text":
-#             await callback.message.answer(draft.text, parse_mode="HTML")
-#         elif draft.content_type == "photo":
-#             await callback.message.answer_photo(draft.media, caption=draft.text, parse_mode="HTML")
-#         elif draft.content_type == "video":
-#             await callback.message.answer_video(draft.media, caption=draft.text, parse_mode="HTML")
-#         elif draft.content_type == "video_note":
-#             await callback.message.answer_video_note(draft.media)
-#             if draft.text:
-#                 await callback.message.answer(draft.text, parse_mode="HTML")
-#
-#         await callback.answer("Предпросмотр отправлен!")
-#     except Exception as e:
-#         await callback.answer(f"Ошибка: {str(e)}")
-#
 
 
 # bot/handlers/broadcast.py
