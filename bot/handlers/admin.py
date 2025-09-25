@@ -116,7 +116,7 @@ async def admin_panel(message: Message):
             "command": "/manage_balance",
             "description": "💰 Управление балансом TON",
             "usage": "/manage_balance &lt;ID&gt; &lt; +/-/= &gt; &lt;Сумма&gt;",
-            "status": "🔄 В разработке"
+            "status": "✅ Активна"
         },
         {
             "command": "/transactions",
@@ -133,45 +133,32 @@ async def admin_panel(message: Message):
     text = format_admin_panel(active_commands, developing_commands)
     await message.answer(text, parse_mode="HTML", disable_web_page_preview=True)
 
-
 def format_admin_panel(active_commands, developing_commands):
     """Форматирование панели администратора"""
 
-    header = (
-        "🛡️ <b>ПАНЕЛЬ АДМИНИСТРАТОРА</b>\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"🎯 Активные команды: <b>{len(active_commands)}</b>\n"
-        f"🛠️ В разработке: <b>{len(developing_commands)}</b>\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-    )
+
 
     # Активные команды
-    active_section = "✅ <b>АКТИВНЫЕ КОМАНДЫ</b>\n\n"
+    active_section = "✅ <b>АКТИВНЫЕ КОМАНДЫ</b>\n"
     for cmd in active_commands:
         active_section += (
-            f"🔹 <b>{cmd['command']}</b>\n"
-            f"   📝 {cmd['description']}\n"
-            f"   💡 <i>Использование:</i> <code>{cmd['usage']}</code>\n\n"
+            f"\n🔹 <b>{cmd['command']}</b>\n"
+            f"{cmd['description']}\n"
+            f"   💡 <code>{cmd['usage']}</code>\n"
         )
 
     # Команды в разработке
-    developing_section = "🔄 <b>КОМАНДЫ В РАЗРАБОТКЕ</b>\n\n"
+    developing_section = "\n🛠️ <b>В РАЗРАБОТКЕ</b>\n"
     for cmd in developing_commands:
         developing_section += (
-            f"⚙️ <b>{cmd['command']}</b>\n"
-            f"   📝 {cmd['description']}\n"
-            f"   💡 <i>Планируется:</i> <code>{cmd['usage']}</code>\n\n"
+            f"\n⚙️ <b>{cmd['command']}</b>\n"
+            f"{cmd['description']}\n"
+            f"   💡 <code>{cmd['usage']}</code>\n"
         )
 
-    # Футер
-    footer = (
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "💡 <b>ПОДСКАЗКИ</b>\n"
-        "• Используйте команды для управления ботом\n"
-        "• Все команды доступны только администраторам\n"
-        "• Следите за обновлениями новых функций 🚀"
-    )
 
-    return header + active_section + developing_section + footer
+
+    return active_section + developing_section
+
 
 
