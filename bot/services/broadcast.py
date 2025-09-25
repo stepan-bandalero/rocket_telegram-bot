@@ -3,7 +3,7 @@ import asyncio
 from aiogram import Bot
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from bot.models.broadcast_task import BroadcastTask
-from bot.db import async_session
+from bot.db import SessionLocal
 
 
 class BroadcastService:
@@ -29,7 +29,7 @@ class BroadcastService:
         task.sent = 0
         task.failed = 0
 
-        async with async_session() as session:
+        async with SessionLocal() as session:
             session.add(task)
             await session.commit()
 
@@ -59,7 +59,7 @@ class BroadcastService:
 
             # Обновляем прогресс каждые 10 отправок
             if task.sent % 10 == 0:
-                async with async_session() as session:
+                async with SessionLocal() as session:
                     session.add(task)
                     await session.commit()
 
@@ -67,7 +67,7 @@ class BroadcastService:
             task.status = "done"
 
         # Финализируем в БД
-        async with async_session() as session:
+        async with SessionLocal() as session:
             session.add(task)
             await session.commit()
 
