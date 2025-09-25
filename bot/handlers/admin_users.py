@@ -13,12 +13,14 @@ router = Router()
 PAGE_SIZE = 8  # пользователей на странице (меньше для лучшего вида)
 
 
+
 async def get_users_page(session: AsyncSession, page: int):
     offset = (page - 1) * PAGE_SIZE
-    # Сортировка только по балансу (от большего к меньшему)
+
+    # явно приводим NULL к 0 и сортируем по этому выражению (DESC)
     stmt = (
         select(User)
-        .order_by(User.ton_balance.desc())
+        .order_by(func.coalesce(User.ton_balance, 0).desc(), User.telegram_id.asc())  # telegram_id как tie-breaker
         .offset(offset)
         .limit(PAGE_SIZE)
     )
@@ -30,6 +32,7 @@ async def get_users_page(session: AsyncSession, page: int):
     total_count = total_result.scalar_one()
 
     return users, total_count
+
 
 
 
