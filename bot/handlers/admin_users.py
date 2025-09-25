@@ -25,7 +25,6 @@ async def get_users_page(session: AsyncSession, page: int):
 
 
 def build_users_keyboard(current_page: int, total_pages: int) -> InlineKeyboardMarkup:
-    kb = InlineKeyboardMarkup()
     buttons = []
 
     if current_page > 1:
@@ -33,8 +32,14 @@ def build_users_keyboard(current_page: int, total_pages: int) -> InlineKeyboardM
     if current_page < total_pages:
         buttons.append(InlineKeyboardButton("Вперед ➡️", callback_data=f"user_page:{current_page + 1}"))
 
-    kb.row(*buttons)
-    return kb
+    if buttons:
+        kb = InlineKeyboardMarkup()
+        kb.row(*buttons)
+        return kb
+    else:
+        # если кнопок нет, возвращаем пустую клавиатуру
+        return InlineKeyboardMarkup(inline_keyboard=[])
+
 
 
 @router.message(F.text.startswith("/users"))
