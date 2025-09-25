@@ -144,7 +144,7 @@ def format_admin_panel(active_commands, developing_commands):
         active_section += (
             f"\n🔹 <b>{cmd['command']}</b>\n"
             f"{cmd['description']}\n"
-            f"   💡 <code>{cmd['usage']}</code>\n"
+            f"<blockquote>{cmd['usage']}</blockquote>\n"
         )
 
     # Команды в разработке
@@ -153,7 +153,7 @@ def format_admin_panel(active_commands, developing_commands):
         developing_section += (
             f"\n⚙️ <b>{cmd['command']}</b>\n"
             f"{cmd['description']}\n"
-            f"   💡 <code>{cmd['usage']}</code>\n"
+            f"<blockquote>{cmd['usage']}</blockquote>\n"
         )
 
 
