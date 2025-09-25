@@ -55,19 +55,19 @@ async def admin_panel(message: Message):
         {
             "command": "/users",
             "description": "👥 Просмотр списка пользователей с пагинацией",
-            "usage": "/users - отображает первую страницу",
+            "usage": "Просто введите команду",
             "status": "✅ Активна"
         },
         {
             "command": "/add_channel",
             "description": "➕ Добавление нового канала",
-            "usage": "/add_channel &lt;ID&qt; &lt;Название&qt; &lt;URL&qt;",
+            "usage": "/add_channel &lt;ID&gt; &lt;Название&gt; &lt;URL&gt;",
             "status": "✅ Активна"
         },
         {
             "command": "/delete_channel",
             "description": "🗑️ Удаление канала",
-            "usage": "/delete_channel &lt;ID_канала&qt;",
+            "usage": "/delete_channel &lt;ID_канала&gt;",
             "status": "✅ Активна"
         },
         {
@@ -79,7 +79,7 @@ async def admin_panel(message: Message):
         {
             "command": "/add_promo",
             "description": "🎁 Создание промо-ссылки",
-            "usage": "/add_promo &lt;Название_промо&qt;",
+            "usage": "/add_promo &lt;Название_промо&gt;",
             "status": "✅ Активна"
         },
         {
@@ -91,31 +91,31 @@ async def admin_panel(message: Message):
         {
             "command": "/delete_promo",
             "description": "❌ Удаление промо-ссылки",
-            "usage": "/delete_promo &lt;Код_промо&lt;",
+            "usage": "/delete_promo &lt;Код_промо&gt;",
             "status": "✅ Активна"
         },
         {
             "command": "/user_info",
             "description": "👤 Подробная информация о пользователе",
-            "usage": "/user_info &lt;ID_пользователя&qt;",
+            "usage": "/user_info &lt;ID_пользователя&gt;",
             "status": "🔄 В разработке"
         },
         {
             "command": "/referral_stats",
             "description": "📈 Реферальная статистика пользователя",
-            "usage": "/referral_stats &lt;ID_пользователя&qt;",
+            "usage": "/referral_stats &lt;ID_пользователя&gt;",
             "status": "🔄 В разработке"
         },
         {
             "command": "/add_gift",
             "description": "🎁 Добавление подарка в инвентарь",
-            "usage": "/add_gift &lt;ID_пользователя&qt; &lt;Ссылка_на_подарок&qt;",
+            "usage": "/add_gift &lt;ID_пользователя&gt; &lt;Ссылка_на_подарок&gt;",
             "status": "✅ Активна"
         },
         {
             "command": "/manage_balance",
             "description": "💰 Управление балансом TON",
-            "usage": "/manage_balance &lt;ID&qt; &lt; +/-/= &lt; &lt;Сумма&qt;",
+            "usage": "/manage_balance &lt;ID&gt; &lt; +/-/= &gt; &lt;Сумма&gt;",
             "status": "🔄 В разработке"
         },
         {
