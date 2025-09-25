@@ -15,8 +15,13 @@ PAGE_SIZE = 8  # пользователей на странице (меньше 
 
 async def get_users_page(session: AsyncSession, page: int):
     offset = (page - 1) * PAGE_SIZE
-    # Сортировка сначала по балансу (убывание), потом по telegram_id
-    stmt = select(User).order_by(User.ton_balance.desc(), User.telegram_id).offset(offset).limit(PAGE_SIZE)
+    # Сортировка только по балансу (от большего к меньшему)
+    stmt = (
+        select(User)
+        .order_by(User.ton_balance.desc())
+        .offset(offset)
+        .limit(PAGE_SIZE)
+    )
     result = await session.execute(stmt)
     users = result.scalars().all()
 
@@ -25,6 +30,7 @@ async def get_users_page(session: AsyncSession, page: int):
     total_count = total_result.scalar_one()
 
     return users, total_count
+
 
 
 def build_users_keyboard(current_page: int, total_pages: int) -> InlineKeyboardMarkup:
