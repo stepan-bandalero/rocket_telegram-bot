@@ -92,9 +92,9 @@ def format_user_line(index: int, user: User) -> str:
     return (
         f"{user_header}\n"
         f"┣ 👤 {username}\n"
-        f"┣ 🆔 {user.telegram_id}\n"
+        f"┣ 🆔 <code>{user.telegram_id}</code>\n"
         f"┣ 💰 {balance}\n"
-        f"┗ 📊 Реф: {user.referred_by or '—'}\n"
+        f"┗ 📊 Реф: <code>{user.referred_by or '—'}</code>\n"
         f"┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄"
     )
 
@@ -102,11 +102,9 @@ def format_user_line(index: int, user: User) -> str:
 def format_users_message(users: list, page: int, total_pages: int, total_count: int) -> str:
     # Заголовок с красивым оформлением
     header = (
-        f"📊 <b>СПИСОК ПОЛЬЗОВАТЕЛЕЙ</b>\n"
-        f"┏━━━━━━━━━━━━━━━━━━━━━━━┓\n"
-        f"┃ 📄 Страница: <b>{page}/{total_pages}</b>     ┃\n"
-        f"┃ 👥 Всего: <b>{total_count}</b> пользователей ┃\n"
-        f"┗━━━━━━━━━━━━━━━━━━━━━━━┛\n\n"
+        f"📊 <b>СПИСОК ПОЛЬЗОВАТЕЛЕЙ</b>\n\n"
+        f"📄 Страница: <b>{page}/{total_pages}</b>\n"
+        f"👥 Всего: <b>{total_count}</b> пользователей\n\n"
     )
 
     # Формируем список пользователей
