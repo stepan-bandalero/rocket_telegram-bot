@@ -110,12 +110,12 @@ async def admin_panel(message: Message):
             "command": "/add_gift",
             "description": "🎁 Добавление подарка в инвентарь",
             "usage": "/add_gift &lt;ID_пользователя&qt; &lt;Ссылка_на_подарок&qt;",
-            "status": "🔄 В разработке"
+            "status": "✅ Активна"
         },
         {
             "command": "/manage_balance",
             "description": "💰 Управление балансом TON",
-            "usage": "/manage_balance &lt;ID&qt; <+/-/=> &lt;Сумма&qt;",
+            "usage": "/manage_balance &lt;ID&qt; &lt; +/-/= &lt; &lt;Сумма&qt;",
             "status": "🔄 В разработке"
         },
         {

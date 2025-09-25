@@ -32,28 +32,37 @@ def build_users_keyboard(current_page: int, total_pages: int) -> InlineKeyboardM
 
     # Добавляем кнопку первой страницы если мы не на ней
     if current_page > 2:
-        buttons.append(InlineKeyboardButton("⏪ 1", callback_data=f"user_page:1"))
+        buttons.append(InlineKeyboardButton(text="⏪ 1", callback_data=f"user_page:1"))
 
     if current_page > 1:
-        buttons.append(InlineKeyboardButton("◀️ Назад", callback_data=f"user_page:{current_page - 1}"))
+        buttons.append(InlineKeyboardButton(text="◀️ Назад", callback_data=f"user_page:{current_page - 1}"))
 
-    # Кнопка текущей страницы
-    buttons.append(InlineKeyboardButton(f"{current_page}/{total_pages}", callback_data="current_page"))
+    # Кнопка текущей страницы - исправлено: добавлен параметр text=
+    buttons.append(InlineKeyboardButton(text=f"{current_page}/{total_pages}", callback_data="current_page"))
 
     if current_page < total_pages:
-        buttons.append(InlineKeyboardButton("Вперед ▶️", callback_data=f"user_page:{current_page + 1}"))
+        buttons.append(InlineKeyboardButton(text="Вперед ▶️", callback_data=f"user_page:{current_page + 1}"))
 
     # Добавляем кнопку последней страницы если мы не на ней
     if current_page < total_pages - 1:
-        buttons.append(InlineKeyboardButton(f"{total_pages} ⏩", callback_data=f"user_page:{total_pages}"))
+        buttons.append(InlineKeyboardButton(text=f"{total_pages} ⏩", callback_data=f"user_page:{total_pages}"))
 
     kb = InlineKeyboardMarkup(inline_keyboard=[])
     if buttons:
         # Разбиваем кнопки на строки для лучшего отображения
         if len(buttons) > 3:
-            kb.row(buttons[0], buttons[1])  # ⏪ и ◀️
-            kb.row(buttons[2])  # текущая страница
-            kb.row(buttons[3], buttons[4])  # ▶️ и ⏩
+            # Создаем строки с правильным количеством кнопок
+            rows = []
+            if len(buttons) >= 2:
+                rows.append([buttons[0], buttons[1]])  # ⏪ и ◀️
+            if len(buttons) >= 3:
+                rows.append([buttons[2]])  # текущая страница
+            if len(buttons) >= 5:
+                rows.append([buttons[3], buttons[4]])  # ▶️ и ⏩
+            elif len(buttons) >= 4:
+                rows.append([buttons[3]])  # только ▶️
+
+            kb = InlineKeyboardMarkup(inline_keyboard=rows)
         else:
             kb.row(*buttons)
 

@@ -1,10 +1,15 @@
-from sqlalchemy import Column, BigInteger, Text, TIMESTAMP, ForeignKey, func
+import enum
+from sqlalchemy import Column, BigInteger, Text, TIMESTAMP, ForeignKey, func, Enum
 from sqlalchemy.orm import relationship
 from bot.db import Base
 from bot.models.gift_catalog import GiftCatalog
 from bot.models.gift_stakings import GiftStaking  # noqa
 
 
+class GiftStatus(str, enum.Enum):
+    AVAILABLE = "AVAILABLE"
+    LOCKED_IN_BET = "LOCKED_IN_BET"
+    SOLD = "SOLD"
 
 
 class UserGift(Base):
@@ -14,7 +19,11 @@ class UserGift(Base):
     user_id = Column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), index=True)
     gift_catalog_id = Column(Text, ForeignKey("gift_catalog.id"), nullable=True)
     received_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
-    status = Column(Text, nullable=False, server_default="AVAILABLE")  # gift_status enum в БД
+    status = Column(
+        Enum(GiftStatus, name="gift_status", create_type=False),  # ✅ Enum вместо Text
+        nullable=False,
+        server_default=GiftStatus.AVAILABLE.value,  # ✅ server_default как строка
+    )
     locked_until = Column(TIMESTAMP(timezone=True), nullable=True)
     gift_image_url = Column(Text, nullable=True)
     price_cents = Column(BigInteger, nullable=False, server_default="0")

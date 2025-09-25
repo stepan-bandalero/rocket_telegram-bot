@@ -3,13 +3,13 @@ import re
 from aiogram import Router, F
 from aiogram.types import Message
 from datetime import datetime, timezone
-from sqlalchemy import insert, select
+from sqlalchemy import select
 
 from bot.config import settings
 from bot.db import SessionLocal
 from bot.models.gift_catalog import GiftCatalog
 from bot.models.users import User
-from bot.models.user_gift import UserGift
+from bot.models.user_gift import UserGift, GiftStatus
 from bot.models.user_transaction import UserTransaction  # модель для транзакций
 
 router = Router()
@@ -71,7 +71,7 @@ async def add_gift_to_user(message: Message):
             user_id=telegram_id,
             gift_catalog_id=gift.id,
             price_cents=gift.price_cents,
-            status="AVAILABLE",
+            status=GiftStatus.AVAILABLE,
             gift_image_url=f"/gifts/{tg_gift_slug}.png",
             received_at=datetime.now(timezone.utc)
         )
