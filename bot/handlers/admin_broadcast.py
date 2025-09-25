@@ -6,7 +6,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.fsm.context import FSMContext
 from sqlalchemy import select
 
-from bot.db import async_session
+from bot.db import SessionLocal
 from bot.services.broadcast import BroadcastService
 from bot.states.broadcast_states import BroadcastStates
 from bot.utils.keyboards import (
@@ -408,7 +408,7 @@ async def confirm_broadcast(callback: CallbackQuery, bot: Bot):
 
     # Получаем список пользователей для рассылки
     from bot.models.users import User
-    async with async_session as session:
+    async with SessionLocal() as session:
         result = await session.execute(select(User.telegram_id).where(User.is_active == True))
         users = [row[0] for row in result.all()]
 
@@ -420,7 +420,7 @@ async def confirm_broadcast(callback: CallbackQuery, bot: Bot):
     draft.status = "pending"
     draft.total = len(users)
 
-    async with async_session() as session:
+    async with SessionLocal() as session:
         session.add(draft)
         await session.commit()
         await session.refresh(draft)
@@ -449,7 +449,7 @@ async def broadcast_active_list(callback: CallbackQuery):
     from bot.models.broadcast_task import BroadcastTask
     from sqlalchemy import select
 
-    async with async_session() as session:
+    async with SessionLocal() as session:
         result = await session.execute(
             select(BroadcastTask).where(
                 BroadcastTask.status.in_(["pending", "sending"])
@@ -481,7 +481,7 @@ async def broadcast_info(callback: CallbackQuery):
     from bot.models.broadcast_task import BroadcastTask
     from sqlalchemy import select
 
-    async with async_session() as session:
+    async with SessionLocal() as session:
         result = await session.execute(select(BroadcastTask).where(BroadcastTask.id == task_id))
         task = result.scalar_one_or_none()
 
@@ -521,7 +521,7 @@ async def stop_broadcast(callback: CallbackQuery):
     from bot.models.broadcast_task import BroadcastTask
     from sqlalchemy import select, update
 
-    async with async_session() as session:
+    async with SessionLocal() as session:
         # Останавливаем рассылку
         await BroadcastService.stop_task(task_id)
 
@@ -543,7 +543,7 @@ async def broadcast_history(callback: CallbackQuery):
     from bot.models.broadcast_task import BroadcastTask
     from sqlalchemy import select
 
-    async with async_session() as session:
+    async with SessionLocal() as session:
         result = await session.execute(
             select(BroadcastTask)
             .where(BroadcastTask.status.in_(["done", "stopped"]))
@@ -589,7 +589,7 @@ async def save_draft(callback: CallbackQuery):
     draft = BroadcastService.current_editing[user_id]
     draft.status = "draft"
 
-    async with async_session() as session:
+    async with SessionLocal() as session:
         session.add(draft)
         await session.commit()
         await session.refresh(draft)
@@ -659,7 +659,7 @@ async def stop_all_broadcasts(callback: CallbackQuery):
     from bot.models.broadcast_task import BroadcastTask
     from sqlalchemy import select, update
 
-    async with async_session() as session:
+    async with SessionLocal() as session:
         # Останавливаем все активные рассылки
         result = await session.execute(
             select(BroadcastTask).where(BroadcastTask.status.in_(["pending", "sending"]))
