@@ -73,13 +73,44 @@ class BroadcastService:
 
         BroadcastService.stop_flags.pop(task.id, None)
 
+    # @staticmethod
+    # async def _send_text(bot: Bot, user_id: int, task: BroadcastTask):
+    #     if task.buttons:
+    #         kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(**b) for b in task.buttons]])
+    #         await bot.send_message(user_id, task.text, reply_markup=kb, parse_mode="HTML")
+    #     else:
+    #         await bot.send_message(user_id, task.text, parse_mode="HTML")
+    #
+    # @staticmethod
+    # async def _send_photo(bot: Bot, user_id: int, task: BroadcastTask):
+    #     if task.buttons:
+    #         kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(**b) for b in task.buttons]])
+    #         await bot.send_photo(user_id, task.media, caption=task.text, reply_markup=kb, parse_mode="HTML")
+    #     else:
+    #         await bot.send_photo(user_id, task.media, caption=task.text, parse_mode="HTML")
+    #
+    # @staticmethod
+    # async def _send_video(bot: Bot, user_id: int, task: BroadcastTask):
+    #     if task.buttons:
+    #         kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(**b) for b in task.buttons]])
+    #         await bot.send_video(user_id, task.media, caption=task.text, reply_markup=kb, parse_mode="HTML")
+    #     else:
+    #         await bot.send_video(user_id, task.media, caption=task.text, parse_mode="HTML")
+    #
+    # @staticmethod
+    # async def _send_video_note(bot: Bot, user_id: int, task: BroadcastTask):
+    #     await bot.send_video_note(user_id, task.media)
+    #     if task.text:
+    #         await BroadcastService._send_text(bot, user_id, task)
+
+    # bot/services/broadcast.py
     @staticmethod
     async def _send_text(bot: Bot, user_id: int, task: BroadcastTask):
         if task.buttons:
             kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(**b) for b in task.buttons]])
             await bot.send_message(user_id, task.text, reply_markup=kb, parse_mode="HTML")
         else:
-            await bot.send_message(user_id, task.text, parse_mode="HTML")
+            await bot.send_message(user_id, task.text, parse_mode="HTML")  # Всегда HTML
 
     @staticmethod
     async def _send_photo(bot: Bot, user_id: int, task: BroadcastTask):
@@ -87,7 +118,7 @@ class BroadcastService:
             kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(**b) for b in task.buttons]])
             await bot.send_photo(user_id, task.media, caption=task.text, reply_markup=kb, parse_mode="HTML")
         else:
-            await bot.send_photo(user_id, task.media, caption=task.text, parse_mode="HTML")
+            await bot.send_photo(user_id, task.media, caption=task.text, parse_mode="HTML")  # Всегда HTML
 
     @staticmethod
     async def _send_video(bot: Bot, user_id: int, task: BroadcastTask):
@@ -95,13 +126,13 @@ class BroadcastService:
             kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(**b) for b in task.buttons]])
             await bot.send_video(user_id, task.media, caption=task.text, reply_markup=kb, parse_mode="HTML")
         else:
-            await bot.send_video(user_id, task.media, caption=task.text, parse_mode="HTML")
+            await bot.send_video(user_id, task.media, caption=task.text, parse_mode="HTML")  # Всегда HTML
 
     @staticmethod
     async def _send_video_note(bot: Bot, user_id: int, task: BroadcastTask):
         await bot.send_video_note(user_id, task.media)
         if task.text:
-            await BroadcastService._send_text(bot, user_id, task)
+            await BroadcastService._send_text(bot, user_id, task)  # Будет использовать HTML
 
     @staticmethod
     async def stop_task(task_id: int):
