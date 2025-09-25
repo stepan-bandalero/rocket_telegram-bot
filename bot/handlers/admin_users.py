@@ -44,7 +44,8 @@ def build_users_keyboard(current_page: int, total_pages: int) -> InlineKeyboardM
 def format_user_line(index: int, user: User) -> str:
     username = f"@{user.username}" if user.username else "—"
     ref = f"🟢 Реферал: {user.referred_by}" if user.referred_by else ""
-    balance = f"💰 {user.ton_balance / 100:.2f} TON"  # если баланс в сотнях
+    balance_val = user.ton_balance if user.ton_balance is not None else 0
+    balance = f"💰 {balance_val / 100:.2f} TON"
     return f"{index:02d}. <b>{user.first_name}</b> {username} | {balance} {ref}"
 
 
