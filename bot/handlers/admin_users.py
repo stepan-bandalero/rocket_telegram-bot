@@ -37,7 +37,7 @@ def build_users_keyboard(current_page: int, total_pages: int) -> InlineKeyboardM
     if current_page > 1:
         buttons.append(InlineKeyboardButton(text="◀️ Назад", callback_data=f"user_page:{current_page - 1}"))
 
-    # Кнопка текущей страницы - исправлено: добавлен параметр text=
+    # Кнопка текущей страницы
     buttons.append(InlineKeyboardButton(text=f"{current_page}/{total_pages}", callback_data="current_page"))
 
     if current_page < total_pages:
@@ -47,26 +47,28 @@ def build_users_keyboard(current_page: int, total_pages: int) -> InlineKeyboardM
     if current_page < total_pages - 1:
         buttons.append(InlineKeyboardButton(text=f"{total_pages} ⏩", callback_data=f"user_page:{total_pages}"))
 
-    kb = InlineKeyboardMarkup(inline_keyboard=[])
-    if buttons:
-        # Разбиваем кнопки на строки для лучшего отображения
-        if len(buttons) > 3:
-            # Создаем строки с правильным количеством кнопок
-            rows = []
-            if len(buttons) >= 2:
-                rows.append([buttons[0], buttons[1]])  # ⏪ и ◀️
-            if len(buttons) >= 3:
-                rows.append([buttons[2]])  # текущая страница
-            if len(buttons) >= 5:
-                rows.append([buttons[3], buttons[4]])  # ▶️ и ⏩
-            elif len(buttons) >= 4:
-                rows.append([buttons[3]])  # только ▶️
+    # Создаем клавиатуру с правильной структурой
+    keyboard = []
 
-            kb = InlineKeyboardMarkup(inline_keyboard=rows)
-        else:
-            kb.row(*buttons)
+    if not buttons:
+        return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-    return kb
+    # Разбиваем кнопки на строки в зависимости от количества
+    if len(buttons) <= 3:
+        # Все кнопки в одну строку
+        keyboard.append(buttons)
+    else:
+        # Разбиваем на несколько строк
+        if len(buttons) == 4:
+            # Две строки по 2 кнопки
+            keyboard.append(buttons[:2])  # Первые две кнопки
+            keyboard.append(buttons[2:])  # Последние две кнопки
+        else:  # 5 кнопок
+            keyboard.append(buttons[:2])  # ⏪ и ◀️
+            keyboard.append([buttons[2]])  # Текущая страница (центр)
+            keyboard.append(buttons[3:])  # ▶️ и ⏩
+
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
 def format_user_line(index: int, user: User) -> str:
