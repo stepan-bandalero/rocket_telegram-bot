@@ -9,58 +9,6 @@ from bot.models.user_transaction import UserTransaction
 from bot.models.users import User
 
 
-# 🔹 Статистика за последние 24ч
-# async def get_statistics_24h(session):
-#     last_24h = datetime.utcnow() - timedelta(hours=24)
-#
-#     # Пользователи
-#     users_data = await session.execute(
-#         select(
-#             func.count(User.telegram_id),
-#             func.count(case((User.created_at >= last_24h, 1)))
-#         )
-#     )
-#     total_users, new_users_24h = users_data.one()
-#
-#     # Ставки за 24ч
-#     bets_24h_result = await session.execute(
-#         select(
-#             func.coalesce(func.sum(Bet.amount_cents), cast(0, BigInteger)).label("bets_sum"),
-#             func.coalesce(func.sum(case((Bet.cashed_out == True, Bet.win_cents), else_=0)), cast(0, BigInteger)).label("wins_sum"),
-#             func.coalesce(func.avg(case((Bet.cashed_out == True, Bet.cashout_multiplier_bp), else_=None)), 0).label("avg_multiplier"),
-#             func.count(Bet.id).label("bets_count"),
-#             func.count(case((Bet.cashed_out == True, 1))).label("wins_count")
-#         )
-#         .where(Bet.created_at >= last_24h)
-#     )
-#     bets_24h = bets_24h_result.one()
-#     bets_sum = bets_24h.bets_sum
-#     wins_sum = bets_24h.wins_sum
-#     avg_multiplier = (bets_24h.avg_multiplier or 0) / 100  # bp → множитель
-#     bets_count = bets_24h.bets_count
-#     wins_count = bets_24h.wins_count
-#
-#     # RTP = выигрыш / ставки * 100
-#     rtp = (wins_sum / bets_sum * 100) if bets_sum > 0 else 0
-#
-#     # profit_label для проекта
-#     profit_total = bets_sum - wins_sum
-#     profit_label = "Прибыль" if profit_total >= 0 else "Убыток"
-#
-#     return {
-#         "users": {"total": total_users, "new_24h": new_users_24h},
-#         "bets": {
-#             "bets_sum": round(bets_sum / 100, 2),
-#             "wins_sum": round(wins_sum / 100, 2),
-#             "bets_count": bets_count,
-#             "wins_count": wins_count,
-#             "profit": round(profit_total / 100, 2),
-#             "profit_label": profit_label,
-#             "avg_multiplier": round(avg_multiplier, 2),
-#             "rtp": round(rtp, 2)
-#         }
-#     }
-
 
 # 🔹 Статистика за последние 24ч
 async def get_statistics_24h(session):
