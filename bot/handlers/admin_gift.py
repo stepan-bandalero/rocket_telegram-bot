@@ -17,10 +17,13 @@ router = Router()
 
 def slugify(slug_part: str) -> str:
     """
-    Превращает DurovsCap из ссылки → durovs_cap для поиска по tg_gift_slug
+    Превращает DurovsCap из ссылки → durovsсap для поиска по tg_gift_slug.
+    Убирает все заглавные буквы, любые разделители.
     """
-    words = re.findall(r"[A-Z][a-z0-9]*", slug_part)
-    return "_".join(w.lower() for w in words)
+    # Убираем любые не буквенно-цифровые символы
+    cleaned = re.sub(r"[^a-zA-Z0-9]", "", slug_part)
+    # Переводим в нижний регистр
+    return cleaned.lower()
 
 
 @router.message(F.text.startswith("/add_gift"))
