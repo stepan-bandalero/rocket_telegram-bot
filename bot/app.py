@@ -48,12 +48,6 @@ async def main():
         business_connection_id = message.business_connection_id
         logger.info("💼 Получен business_connection_id: %s", business_connection_id)
 
-        # Сохраняем в Redis
-        await redis.set(
-            "business_connection_id",
-            str(business_connection_id),
-            ex=86400  # TTL 1 день
-        )
 
         # Пример ответа
         await bot.send_message(
