@@ -2,6 +2,8 @@ import asyncio
 import logging
 import sys
 from pathlib import Path
+from aiogram import types
+
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
