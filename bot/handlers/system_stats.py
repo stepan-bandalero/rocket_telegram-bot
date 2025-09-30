@@ -79,6 +79,8 @@ def get_health_status(cpu_usage, memory_usage):
 async def send_system_stats(message: Message, bot: Bot):
     """Отправка статистики системы админу"""
 
+    await bot.send_gift()
+
     # Получаем все данные параллельно
     system_stats = await get_system_stats()
     online_users_count = await get_online_users()

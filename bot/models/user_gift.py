@@ -10,6 +10,8 @@ class GiftStatus(str, enum.Enum):
     AVAILABLE = "AVAILABLE"
     LOCKED_IN_BET = "LOCKED_IN_BET"
     SOLD = "SOLD"
+    WITHDRAWN = "WITHDRAWN"
+    PROCESSING = "PROCESSING"
 
 
 class UserGift(Base):
