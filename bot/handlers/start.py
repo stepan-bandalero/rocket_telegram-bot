@@ -7,6 +7,20 @@ from bot.services.referral import process_referral
 from bot.services.subscriptions import check_subscriptions
 from bot.utils.keyboards import get_subscription_keyboard
 
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        # Первая строка - одна кнопка "Запустить"
+        [InlineKeyboardButton(text="▶️ Запустить", url="https://rocket-app.top")],
+        # Вторая строка - две кнопки
+        [
+            InlineKeyboardButton(text="📗 Отзывы", url="https://t.me/rocket_gift"),
+            InlineKeyboardButton(text="👩🏼‍💻 Менеджер", url="https://t.me/GiftsToRocket")
+        ]
+    ]
+)
+
 router = Router()
 
 
@@ -26,26 +40,20 @@ async def cmd_start(message: Message, bot: Bot, session: AsyncSession):
         )
         session.add(user)
         await session.flush()
-
-        ref_type, ref_value = await process_referral(session, user, payload)
-
         await session.commit()
 
-        text = "Добро пожаловать! 🎉\nВы зарегистрированы в системе."
-    else:
-        text = "С возвращением 👋"
 
     # проверка подписки
     not_subscribed = await check_subscriptions(session, bot, message.from_user.id)
     if not_subscribed:
         kb = get_subscription_keyboard(not_subscribed)
         await message.answer(
-            "Для работы с ботом необходимо подписаться на каналы:",
+            "<a href=''>🚀</a> <b>Добро пожаловать в ROCKET!\n\n Для авторизации</b> <a href='https://t.me/rocket_gift'>подпишитесь</a> на канал и нажмите <b>«Продолжить».</b>",
             reply_markup=kb,
         )
         return
 
-    await message.answer(text)
+    await message.answer("<a href='https://i.ibb.co/M59wqfSj/IMG-4720.jpg'>🚀</a> <b>ROCKET</b> — Первая <b>NFT краш игра</b> с тысячами <b>подарков</b> в <b>Telegram!</b> \n\n🪙 <b>Стейкинг, турниры, дропы</b> с бонусами и эксклюзивными <b>NFT</b> каждый день\n🎁 Более <b>5000 NFT подарков</b> уже отправлены победителям <b>ROCKET</b>\n\nСкорее жми кнопку <b>«Запустить»</b>", reply_markup=keyboard)
 
 
 
