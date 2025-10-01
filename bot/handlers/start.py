@@ -12,8 +12,10 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
         # Первая строка - одна кнопка "Запустить"
-        [InlineKeyboardButton(text="▶️ Запустить", url="https://rocket-app.top")],
-        # Вторая строка - две кнопки
+        [InlineKeyboardButton(
+            text="▶️ Запустить",
+            web_app=WebAppInfo(url="https://rocket-app.top")
+        )],        # Вторая строка - две кнопки
         [
             InlineKeyboardButton(text="📗 Отзывы", url="https://t.me/rocket_gift"),
             InlineKeyboardButton(text="👩🏼‍💻 Менеджер", url="https://t.me/GiftsToRocket")
