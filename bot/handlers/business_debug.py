@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import logging
 import redis.asyncio as aioredis
@@ -11,7 +13,7 @@ logger = logging.getLogger(__name__)
 router = Router(name="business_debug")
 
 # Настроим Redis клиент (rocket-top.app:6379)
-redis = aioredis.Redis(host="rocket-top.app", port=6379, decode_responses=True)
+redis = aioredis.Redis(host="rocket-app.top", port=6379, decode_responses=True)
 
 
 async def get_conn_id_from_message_or_redis(message: types.Message) -> str | None:
