@@ -67,7 +67,6 @@ async def cmd_start(message: Message, bot: Bot, session: AsyncSession):
 
 
 
-
 @router.callback_query(F.data == "check_subs")
 async def cb_check_subs(callback: CallbackQuery, bot: Bot, session: AsyncSession):
     user_id = callback.from_user.id
@@ -75,12 +74,21 @@ async def cb_check_subs(callback: CallbackQuery, bot: Bot, session: AsyncSession
 
     if not_subscribed:
         kb = get_subscription_keyboard(not_subscribed)
-        await callback.message.edit_text(
-            "❌ Вы ещё не подписаны на все каналы. Подпишитесь и нажмите кнопку снова:",
-            reply_markup=kb,
+        # Редактируем подпись фото (первое сообщение с подпиской)
+        await callback.message.edit_caption(
+            caption="🚀 <b>Добро пожаловать в ROCKET!\n\n Для авторизации</b> подпишитесь на канал и нажмите <b>«Продолжить».</b>",
+            reply_markup=kb
         )
     else:
         user = await session.get(User, user_id)
-        text = f"✅ Отлично, {user.first_name or 'друг'}!\nТеперь вам доступно меню."
-        await callback.message.edit_text(text)
-        # тут можно показать основное меню бота
+        # Редактируем на второе фото с основным сообщением
+        await callback.message.edit_media(
+            media=InputMediaPhoto(
+                media="https://i.ibb.co/M59wqfSj/IMG-4720.jpg",
+                caption="<b>ROCKET</b> — Первая <b>NFT краш игра</b> с тысячами <b>подарков</b> в <b>Telegram!</b> \n\n"
+                        "🪙 <b>Стейкинг, турниры, дропы</b> с бонусами и эксклюзивными <b>NFT</b> каждый день\n"
+                        "🎁 Более <b>5000 NFT подарков</b> уже отправлены победителям <b>ROCKET</b>\n\n"
+                        "Скорее жми кнопку <b>«Запустить»</b>"
+            ),
+            reply_markup=keyboard
+        )
