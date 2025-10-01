@@ -2,7 +2,7 @@ from aiogram import F, Router
 from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from datetime import datetime
 
 from bot.config import settings
 from bot.db import SessionLocal
@@ -10,7 +10,7 @@ from bot.models.users import User
 from bot.models.user_gift import UserGift, GiftStatus
 from bot.models.gift_withdrawals import GiftWithdrawal
 from bot.models.bets import Bet
-from datetime import datetime
+from bot.models.gift_catalog import GiftCatalog
 
 router = Router()
 
@@ -20,24 +20,38 @@ PAGE_SIZE = 1  # 1 заявка на странице
 async def get_withdrawals_page(session: AsyncSession, page: int):
     offset = (page - 1) * PAGE_SIZE
 
-    # Получаем заявки на вывод со статусом pending или processing
+    # Простой запрос с JOIN вместо отношений
     stmt = (
-        select(GiftWithdrawal)
+        select(
+            GiftWithdrawal,
+            UserGift,
+            User,
+            GiftCatalog
+        )
+        .select_from(GiftWithdrawal)
         .join(UserGift, GiftWithdrawal.user_gift_id == UserGift.id)
         .join(User, UserGift.user_id == User.telegram_id)
-        .options(
-            selectinload(GiftWithdrawal.user_gift_id).selectinload(UserGift.user_id),
-            selectinload(GiftWithdrawal.user_gift_id).selectinload(UserGift.gift_catalog_id)
-        )
+        .outerjoin(GiftCatalog, UserGift.gift_catalog_id == GiftCatalog.id)
         .where(GiftWithdrawal.status.in_(["pending", "processing"]))
         .order_by(GiftWithdrawal.created_at.desc())
         .offset(offset)
         .limit(PAGE_SIZE)
     )
     result = await session.execute(stmt)
-    withdrawals = result.scalars().all()
+    rows = result.all()
 
-    # Получаем общее количество заявок со статусом pending или processing
+    # Структурируем данные
+    withdrawals_data = []
+    for row in rows:
+        withdrawal, user_gift, user, gift_catalog = row
+        withdrawals_data.append({
+            'withdrawal': withdrawal,
+            'user_gift': user_gift,
+            'user': user,
+            'gift_catalog': gift_catalog
+        })
+
+    # Получаем общее количество заявок
     total_stmt = (
         select(func.count(GiftWithdrawal.id))
         .where(GiftWithdrawal.status.in_(["pending", "processing"]))
@@ -45,7 +59,7 @@ async def get_withdrawals_page(session: AsyncSession, page: int):
     total_result = await session.execute(total_stmt)
     total_count = total_result.scalar_one()
 
-    return withdrawals, total_count
+    return withdrawals_data, total_count
 
 
 async def get_user_recent_bets(session: AsyncSession, user_id: int, limit: int = 5):
@@ -104,33 +118,43 @@ def format_bet_line(bet: Bet, index: int) -> str:
     )
 
 
-def format_withdrawal_message(withdrawal: GiftWithdrawal, recent_bets: list, page: int, total_pages: int) -> str:
+def format_withdrawal_message(withdrawal_data: dict, recent_bets: list, page: int, total_pages: int) -> str:
     """Форматирование сообщения с информацией о заявке"""
-    user_gift = withdrawal.user_gift
-    user = user_gift.user
-    gift_catalog = user_gift.gift_catalog
+    withdrawal = withdrawal_data['withdrawal']
+    user_gift = withdrawal_data['user_gift']
+    user = withdrawal_data['user']
+    gift_catalog = withdrawal_data['gift_catalog']
 
     # Информация о подарке
     gift_title = gift_catalog.title if gift_catalog else "Неизвестный подарок"
     gift_price = f"{user_gift.price_cents / 100:.2f}" if user_gift.price_cents else "0.00"
+    gift_image = user_gift.gift_image_url or (gift_catalog.image_url if gift_catalog else None)
 
     # Информация о пользователе
-    username = f"@<code>{user.username}</code>" if user.username else "—"
+    username = f"@{user.username}" if user.username else "—"
     user_balance = f"{user.ton_balance / 100:.2f} TON" if user.ton_balance else "0.00 TON"
 
     # Информация о заявке
     created_at = withdrawal.created_at.strftime("%d.%m.%Y %H:%M") if withdrawal.created_at else "—"
+    strategy = "🎯 Прямой" if withdrawal.strategy == "direct" else "🔄 Другой"
+    retries = withdrawal.retries or 0
 
     message_parts = [
         f"📦 <b>ЗАЯВКА НА ВЫВОД ПОДАРКА</b>\n",
         f"📄 Страница: <b>{page}/{total_pages}</b>\n",
         f"⏰ Создана: <b>{created_at}</b>\n",
+        f"🔄 Попытки: <b>{retries}</b>\n",
+        f"🎯 Стратегия: <b>{strategy}</b>\n\n",
 
         f"🎁 <b>ИНФОРМАЦИЯ О ПОДАРКЕ</b>\n",
         f"┣ Название: <b>{gift_title}</b>\n",
         f"┣ Цена: <b>${gift_price}</b>\n",
     ]
 
+    if gift_image:
+        message_parts.append(f"┗ 📸 <a href='{gift_image}'>Фото подарка</a>\n")
+    else:
+        message_parts.append("┗ 📸 Фото: отсутствует\n")
 
     message_parts.extend([
         f"\n👤 <b>ИНФОРМАЦИЯ О ПОЛЬЗОВАТЕЛЕ</b>\n",
@@ -162,21 +186,22 @@ async def list_withdrawals(message: Message):
 
     page = 1
     async with SessionLocal() as session:
-        withdrawals, total_count = await get_withdrawals_page(session, page)
+        withdrawals_data, total_count = await get_withdrawals_page(session, page)
 
     total_pages = max((total_count + PAGE_SIZE - 1) // PAGE_SIZE, 1)
 
-    if not withdrawals:
+    if not withdrawals_data:
         await message.answer("📭 <b>Нет заявок на вывод со статусом pending/processing</b>", parse_mode="HTML")
         return
 
-    withdrawal = withdrawals[0]
+    withdrawal_data = withdrawals_data[0]
+    withdrawal = withdrawal_data['withdrawal']
 
     # Получаем последние ставки пользователя
     async with SessionLocal() as session:
-        recent_bets = await get_user_recent_bets(session, withdrawal.user_gift.user_id)
+        recent_bets = await get_user_recent_bets(session, withdrawal_data['user'].telegram_id)
 
-    text = format_withdrawal_message(withdrawal, recent_bets, page, total_pages)
+    text = format_withdrawal_message(withdrawal_data, recent_bets, page, total_pages)
     kb = build_withdrawals_keyboard(page, total_pages, withdrawal.id)
 
     await message.answer(text, parse_mode="HTML", reply_markup=kb, disable_web_page_preview=False)
@@ -188,22 +213,23 @@ async def paginate_withdrawals(cb: CallbackQuery):
         page = int(cb.data.split(":")[1])
 
         async with SessionLocal() as session:
-            withdrawals, total_count = await get_withdrawals_page(session, page)
+            withdrawals_data, total_count = await get_withdrawals_page(session, page)
 
         total_pages = max((total_count + PAGE_SIZE - 1) // PAGE_SIZE, 1)
 
         # Проверяем, что запрашиваемая страница существует
-        if page < 1 or page > total_pages or not withdrawals:
+        if page < 1 or page > total_pages or not withdrawals_data:
             await cb.answer("❌ Эта страница не существует!")
             return
 
-        withdrawal = withdrawals[0]
+        withdrawal_data = withdrawals_data[0]
+        withdrawal = withdrawal_data['withdrawal']
 
         # Получаем последние ставки пользователя
         async with SessionLocal() as session:
-            recent_bets = await get_user_recent_bets(session, withdrawal.user_gift.user_id)
+            recent_bets = await get_user_recent_bets(session, withdrawal_data['user'].telegram_id)
 
-        text = format_withdrawal_message(withdrawal, recent_bets, page, total_pages)
+        text = format_withdrawal_message(withdrawal_data, recent_bets, page, total_pages)
         kb = build_withdrawals_keyboard(page, total_pages, withdrawal.id)
 
         await cb.message.edit_text(text, reply_markup=kb, parse_mode="HTML", disable_web_page_preview=False)
@@ -233,7 +259,6 @@ async def confirm_withdrawal(cb: CallbackQuery):
                 select(GiftWithdrawal)
                 .where(GiftWithdrawal.id == withdrawal_id)
                 .where(GiftWithdrawal.status.in_(["pending", "processing"]))
-                .options(selectinload(GiftWithdrawal.user_gift))
             )
             result = await session.execute(stmt)
             withdrawal = result.scalar_one_or_none()
@@ -282,7 +307,6 @@ async def reject_withdrawal(cb: CallbackQuery):
                 select(GiftWithdrawal)
                 .where(GiftWithdrawal.id == withdrawal_id)
                 .where(GiftWithdrawal.status.in_(["pending", "processing"]))
-                .options(selectinload(GiftWithdrawal.user_gift))
             )
             result = await session.execute(stmt)
             withdrawal = result.scalar_one_or_none()
