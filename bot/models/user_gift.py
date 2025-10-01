@@ -35,3 +35,5 @@ class UserGift(Base):
     gift_catalog = relationship(GiftCatalog, backref="user_gifts")
     bets = relationship("Bet", back_populates="user_gift")
     gift_stakings = relationship(GiftStaking, back_populates="user_gift")
+    user_gift = relationship("UserGift", backref="withdrawals")
+
