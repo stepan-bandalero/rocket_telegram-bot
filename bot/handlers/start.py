@@ -47,14 +47,21 @@ async def cmd_start(message: Message, bot: Bot, session: AsyncSession):
     not_subscribed = await check_subscriptions(session, bot, message.from_user.id)
     if not_subscribed:
         kb = get_subscription_keyboard(not_subscribed)
-        await message.answer(
-            "<a href='https://i.ibb.co/YFFsrwW3/5678867.jpg'>🚀</a> <b>Добро пожаловать в ROCKET!\n\n Для авторизации</b> <a href='https://t.me/rocket_gift'>подпишитесь</a> на канал и нажмите <b>«Продолжить».</b>",
-            reply_markup=kb,
+        await message.answer_photo(
+            photo="https://i.ibb.co/YFFsrwW3/5678867.jpg",
+            caption="🚀 <b>Добро пожаловать в ROCKET!\n\n Для авторизации</b> подпишитесь на канал и нажмите <b>«Продолжить».</b>",
+            reply_markup=kb
         )
         return
 
-    await message.answer("<a href='https://i.ibb.co/M59wqfSj/IMG-4720.jpg'>🚀</a> <b>ROCKET</b> — Первая <b>NFT краш игра</b> с тысячами <b>подарков</b> в <b>Telegram!</b> \n\n🪙 <b>Стейкинг, турниры, дропы</b> с бонусами и эксклюзивными <b>NFT</b> каждый день\n🎁 Более <b>5000 NFT подарков</b> уже отправлены победителям <b>ROCKET</b>\n\nСкорее жми кнопку <b>«Запустить»</b>", reply_markup=keyboard)
-
+    await message.answer_photo(
+        photo="https://i.ibb.co/M59wqfSj/IMG-4720.jpg",
+        caption="<b>ROCKET</b> — Первая <b>NFT краш игра</b> с тысячами <b>подарков</b> в <b>Telegram!</b> \n\n"
+                "🪙 <b>Стейкинг, турниры, дропы</b> с бонусами и эксклюзивными <b>NFT</b> каждый день\n"
+                "🎁 Более <b>5000 NFT подарков</b> уже отправлены победителям <b>ROCKET</b>\n\n"
+                "Скорее жми кнопку <b>«Запустить»</b>",
+        reply_markup=keyboard
+    )
 
 
 
