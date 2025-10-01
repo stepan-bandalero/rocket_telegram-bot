@@ -43,6 +43,9 @@ async def cmd_start(message: Message, bot: Bot, session: AsyncSession):
         )
         session.add(user)
         await session.flush()
+
+        ref_type, ref_id = await process_referral(session, user, payload)
+
         await session.commit()
 
 
