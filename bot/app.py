@@ -10,7 +10,7 @@ from aiogram.client.default import DefaultBotProperties
 
 from .config import settings
 from .middlewares.db import DataBaseSessionMiddleware
-from .handlers import start, admin, admin_promos, admin_channels, admin_broadcast, admin_users, admin_gift, admin_balance, system_stats
+from .handlers import start, admin, admin_promos, admin_channels, admin_broadcast, admin_users, admin_gift, admin_balance, system_stats, business_debug
 
 sys.path.append(str(Path(__file__).resolve().parent))
 
@@ -42,11 +42,6 @@ async def main():
     dp.include_router(admin_gift.router)
     dp.include_router(admin_balance.router)
     dp.include_router(system_stats.router)
-
-    @dp.business_message()
-    async def handle_business_message(message: types.Message):
-        business_connection_id = message.business_connection_id
-        logger.info("💼 Получен business_connection_id: %s", business_connection_id)
 
 
     logger.info("🚀 Бот запускается...")
