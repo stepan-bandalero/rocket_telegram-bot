@@ -1,4 +1,4 @@
-from aiogram import Router, types, F
+from aiogram import Router, types, F, Bot
 from aiogram.filters import Command
 from aiogram.types import BusinessConnection
 from aiogram.methods import GetBusinessAccountGifts, GetAvailableGifts, GetBusinessConnection
@@ -34,7 +34,7 @@ async def cmd_my_business_conn(message: types.Message):
 
 # Команда: получить полное описание business_connection (если id знаем)
 @router.message(Command("debug_business_conn"))
-async def cmd_debug_business_conn(message: types.Message, bot: types.Bot):
+async def cmd_debug_business_conn(message: types.Message, bot: Bot):
     if not message.business_connection_id:
         await message.answer("❌ В сообщении нет business_connection_id")
         return
@@ -48,7 +48,7 @@ async def cmd_debug_business_conn(message: types.Message, bot: types.Bot):
 
 # Команда: вытащить все подарки бизнес-аккаунта
 @router.message(Command("debug_business_gifts"))
-async def cmd_debug_business_gifts(message: types.Message, bot: types.Bot):
+async def cmd_debug_business_gifts(message: types.Message, bot: Bot):
     if not message.business_connection_id:
         await message.answer("❌ Нет business_connection_id")
         return
@@ -66,7 +66,7 @@ async def cmd_debug_business_gifts(message: types.Message, bot: types.Bot):
 
 # Команда: посмотреть список доступных подарков (что бот может отправить)
 @router.message(Command("debug_available_gifts"))
-async def cmd_debug_available_gifts(message: types.Message, bot: types.Bot):
+async def cmd_debug_available_gifts(message: types.Message, bot: Bot):
     try:
         resp = await bot(GetAvailableGifts())
         logger.info("🎁 GetAvailableGifts response:\n%s", resp.model_dump_json(indent=2, ensure_ascii=False))

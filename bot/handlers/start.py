@@ -1,6 +1,6 @@
 from aiogram import Router, F, Bot
 from aiogram.filters import CommandStart
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, WebAppInfo
 from sqlalchemy.ext.asyncio import AsyncSession
 from bot.models.users import User
 from bot.services.referral import process_referral
@@ -8,7 +8,7 @@ from bot.services.subscriptions import check_subscriptions
 from bot.utils.keyboards import get_subscription_keyboard
 from aiogram.types import InputMediaPhoto
 
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
