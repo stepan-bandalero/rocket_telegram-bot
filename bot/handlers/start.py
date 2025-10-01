@@ -72,8 +72,8 @@ async def cb_check_subs(callback: CallbackQuery, bot: Bot, session: AsyncSession
     not_subscribed = await check_subscriptions(session, bot, user_id)
 
     if not_subscribed:
-        # Просто показываем уведомление без изменения сообщения
-        await callback.answer("❌ Вы ещё не подписаны на все каналы!", show_alert=True)
+        # Показываем плашку вверху чата на несколько секунд
+        await callback.answer("❌ Вы ещё не подписаны на все каналы!", show_alert=False)
     else:
         user = await session.get(User, user_id)
 
@@ -88,4 +88,6 @@ async def cb_check_subs(callback: CallbackQuery, bot: Bot, session: AsyncSession
             ),
             reply_markup=keyboard
         )
+        # Можно также показать плашку об успехе
+        await callback.answer("✅ Отлично! Доступ открыт!", show_alert=False)
         
