@@ -7,7 +7,7 @@ from bot.services.referral import process_referral
 from bot.services.subscriptions import check_subscriptions
 from bot.utils.keyboards import get_subscription_keyboard
 
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 
 keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
