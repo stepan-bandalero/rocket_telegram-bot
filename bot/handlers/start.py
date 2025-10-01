@@ -59,7 +59,7 @@ async def cmd_start(message: Message, bot: Bot, session: AsyncSession):
 
     await message.answer_photo(
         photo="https://i.ibb.co/M59wqfSj/IMG-4720.jpg",
-        caption="<b>ROCKET</b> — Первая <b>NFT краш игра</b> с тысячами <b>подарков</b> в <b>Telegram!</b> \n\n"
+        caption="<b>🚀 ROCKET</b> — Первая <b>NFT краш игра</b> с тысячами <b>подарков</b> в <b>Telegram!</b> \n\n"
                 "🪙 <b>Стейкинг, турниры, дропы</b> с бонусами и эксклюзивными <b>NFT</b> каждый день\n"
                 "🎁 Более <b>5000 NFT подарков</b> уже отправлены победителям <b>ROCKET</b>\n\n"
                 "Скорее жми кнопку <b>«Запустить»</b>",
@@ -89,5 +89,4 @@ async def cb_check_subs(callback: CallbackQuery, bot: Bot, session: AsyncSession
             ),
             reply_markup=keyboard
         )
-        # Можно также показать плашку об успехе
-        await callback.answer("✅ Отлично! Доступ открыт!", show_alert=False)
+
