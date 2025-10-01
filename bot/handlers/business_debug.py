@@ -26,16 +26,6 @@ async def get_conn_id_from_message_or_redis(message: types.Message) -> str | Non
     return conn_id
 
 
-# Ловим бизнес-сообщения
-@router.business_message()
-async def handle_business_message(message: types.Message):
-    logger.info("💼 BusinessMessage raw:\n%s", json.dumps(message.model_dump(), indent=2, ensure_ascii=False))
-    # Сохраним business_connection_id в Redis
-    if message.business_connection_id:
-        await redis.set("business_connection_id", message.business_connection_id)
-        logger.info("💾 business_connection_id сохранён в Redis: %s", message.business_connection_id)
-
-
 # Ловим апдейты business_connection (например, при подключении/отключении)
 @router.business_connection()
 async def handle_business_connection(bc: BusinessConnection):
@@ -65,6 +55,7 @@ async def cmd_debug_business_conn(message: types.Message, bot: Bot):
         resp = await bot(GetBusinessConnection(business_connection_id=conn_id))
         logger.info("📑 GetBusinessConnection response:\n%s", json.dumps(resp.model_dump(), indent=2, ensure_ascii=False))
     except Exception as e:
+        print(e)
         return
 
 # Команда: вытащить все подарки бизнес-аккаунта
@@ -81,6 +72,7 @@ async def cmd_debug_business_gifts(message: types.Message, bot: Bot):
         ))
         logger.info("🎁 GetBusinessAccountGifts response:\n%s", json.dumps(resp.model_dump(), indent=2, ensure_ascii=False))
     except Exception as e:
+        print(e)
         return
 
 
@@ -91,4 +83,5 @@ async def cmd_debug_available_gifts(message: types.Message, bot: Bot):
         resp = await bot(GetAvailableGifts())
         logger.info("🎁 GetAvailableGifts response:\n%s", json.dumps(resp.model_dump(), indent=2, ensure_ascii=False))
     except Exception as e:
+        print(e)
         return
