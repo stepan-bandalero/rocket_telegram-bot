@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 from bot.config import settings
 from bot.db import SessionLocal
 from bot.models.users import User
-from bot.models.user_gifts import UserGift, GiftStatus
+from bot.models.user_gift import UserGift, GiftStatus
 from bot.models.gift_withdrawals import GiftWithdrawal
 from bot.models.bets import Bet
 from datetime import datetime
