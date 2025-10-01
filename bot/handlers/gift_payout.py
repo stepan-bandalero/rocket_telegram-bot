@@ -27,7 +27,7 @@ async def get_withdrawals_page(session: AsyncSession, page: int):
         .join(User, UserGift.user_id == User.telegram_id)
         .options(
             selectinload(GiftWithdrawal.user_gift).selectinload(UserGift.user),
-            selectinload(GiftWithdrawal.user_gift).selectinload(UserGift.gift_catalog)
+            selectinload(GiftWithdrawal.user_gift).selectinload(UserGift.gift_catalog_id)
         )
         .where(GiftWithdrawal.status.in_(["pending", "processing"]))
         .order_by(GiftWithdrawal.created_at.desc())
