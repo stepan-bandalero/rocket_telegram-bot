@@ -22,7 +22,7 @@ async def get_system_stats():
     """Получение статистики системы с game сервера"""
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get("http://localhost:3001/system-stats", timeout=10) as response:
+            async with session.get("https://rocket-app.top:3001/system-stats", timeout=10) as response:
                 if response.status == 200:
                     return await response.json()
                 else:
@@ -36,7 +36,7 @@ async def get_online_users():
     """Получение количества онлайн пользователей"""
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get("http://localhost:3001/online-users-count", timeout=5) as response:
+            async with session.get("https://rocket-app.top/online-users-count", timeout=5) as response:
                 if response.status == 200:
                     data = await response.json()
                     return data.get("online_users", "N/A")
@@ -49,7 +49,7 @@ async def get_detailed_online_users():
     """Получение детальной информации об онлайн пользователях"""
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get("http://localhost:3001/online-users", timeout=5) as response:
+            async with session.get("https://rocket-app.top/online-users", timeout=5) as response:
                 if response.status == 200:
                     return await response.json()
     except Exception as e:
@@ -79,7 +79,6 @@ def get_health_status(cpu_usage, memory_usage):
 async def send_system_stats(message: Message, bot: Bot):
     """Отправка статистики системы админу"""
 
-    await bot.send_gift()
 
     # Получаем все данные параллельно
     system_stats = await get_system_stats()
@@ -169,7 +168,7 @@ async def get_response_time():
     try:
         start_time = time.time()
         async with aiohttp.ClientSession() as session:
-            async with session.get("http://localhost:3001/health", timeout=5) as response:
+            async with session.get("https://rocket-app.top/health", timeout=5) as response:
                 if response.status == 200:
                     return (time.time() - start_time) * 1000  # в миллисекундах
     except:
