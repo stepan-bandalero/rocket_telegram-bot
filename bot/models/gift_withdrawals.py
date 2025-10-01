@@ -1,6 +1,7 @@
 from sqlalchemy import Column, BigInteger, Integer, Text, TIMESTAMP, Boolean, ForeignKey, func
 from sqlalchemy.dialects.postgresql import ENUM
 from bot.db import Base
+from sqlalchemy.orm import relationship
 
 
 class GiftWithdrawal(Base):
