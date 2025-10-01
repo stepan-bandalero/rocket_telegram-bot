@@ -128,33 +128,24 @@ def format_withdrawal_message(withdrawal_data: dict, recent_bets: list, page: in
     # Информация о подарке
     gift_title = gift_catalog.title if gift_catalog else "Неизвестный подарок"
     gift_price = f"{user_gift.price_cents / 100:.2f}" if user_gift.price_cents else "0.00"
-    gift_image = user_gift.gift_image_url or (gift_catalog.image_url if gift_catalog else None)
 
     # Информация о пользователе
-    username = f"@{user.username}" if user.username else "—"
+    username = f"@<code>{user.username}</code>" if user.username else "—"
     user_balance = f"{user.ton_balance / 100:.2f} TON" if user.ton_balance else "0.00 TON"
 
     # Информация о заявке
     created_at = withdrawal.created_at.strftime("%d.%m.%Y %H:%M") if withdrawal.created_at else "—"
-    strategy = "🎯 Прямой" if withdrawal.strategy == "direct" else "🔄 Другой"
-    retries = withdrawal.retries or 0
 
     message_parts = [
         f"📦 <b>ЗАЯВКА НА ВЫВОД ПОДАРКА</b>\n",
         f"📄 Страница: <b>{page}/{total_pages}</b>\n",
         f"⏰ Создана: <b>{created_at}</b>\n",
-        f"🔄 Попытки: <b>{retries}</b>\n",
-        f"🎯 Стратегия: <b>{strategy}</b>\n\n",
 
         f"🎁 <b>ИНФОРМАЦИЯ О ПОДАРКЕ</b>\n",
         f"┣ Название: <b>{gift_title}</b>\n",
         f"┣ Цена: <b>${gift_price}</b>\n",
     ]
 
-    if gift_image:
-        message_parts.append(f"┗ 📸 <a href='{gift_image}'>Фото подарка</a>\n")
-    else:
-        message_parts.append("┗ 📸 Фото: отсутствует\n")
 
     message_parts.extend([
         f"\n👤 <b>ИНФОРМАЦИЯ О ПОЛЬЗОВАТЕЛЕ</b>\n",
