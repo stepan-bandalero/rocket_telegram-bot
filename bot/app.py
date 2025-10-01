@@ -49,13 +49,6 @@ async def main():
         logger.info("💼 Получен business_connection_id: %s", business_connection_id)
 
 
-        # Пример ответа
-        await bot.send_message(
-            business_connection_id=business_connection_id,
-            chat_id=message.from_user.id,
-            text="Привет! 🎁"
-        )
-
     logger.info("🚀 Бот запускается...")
 
     try:
