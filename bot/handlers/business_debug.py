@@ -1,46 +1,68 @@
+import json
+import logging
+import redis.asyncio as aioredis
 from aiogram import Router, types, F, Bot
 from aiogram.filters import Command
 from aiogram.types import BusinessConnection
 from aiogram.methods import GetBusinessAccountGifts, GetAvailableGifts, GetBusinessConnection
-import json
-import logging
 
 logger = logging.getLogger(__name__)
 
 router = Router(name="business_debug")
 
+# Настроим Redis клиент (rocket-top.app:6379)
+redis = aioredis.Redis(host="rocket-top.app", port=6379, decode_responses=True)
+
+
+async def get_conn_id_from_message_or_redis(message: types.Message) -> str | None:
+    """Пробуем взять business_connection_id из апдейта или Redis"""
+    if message.business_connection_id:
+        return message.business_connection_id
+    conn_id = await redis.get("business_connection_id")
+    if conn_id:
+        logger.info("📦 business_connection_id взят из Redis: %s", conn_id)
+    return conn_id
+
 
 # Ловим бизнес-сообщения
 @router.business_message()
 async def handle_business_message(message: types.Message):
-    logger.info("💼 BusinessMessage raw: %s", message.json(indent=2, ensure_ascii=False))
+    logger.info("💼 BusinessMessage raw:\n%s", json.dumps(message.model_dump(), indent=2, ensure_ascii=False))
+    # Сохраним business_connection_id в Redis
+    if message.business_connection_id:
+        await redis.set("business_connection_id", message.business_connection_id)
+        logger.info("💾 business_connection_id сохранён в Redis: %s", message.business_connection_id)
     await message.answer("✅ BusinessMessage получен. Лог смотри в консоли.")
 
 
 # Ловим апдейты business_connection (например, при подключении/отключении)
 @router.business_connection()
 async def handle_business_connection(bc: BusinessConnection):
-    logger.info("🔗 BusinessConnection event:\n%s", bc.model_dump_json(indent=2, ensure_ascii=False))
+    logger.info("🔗 BusinessConnection event:\n%s", json.dumps(bc.model_dump(), indent=2, ensure_ascii=False))
+    await redis.set("business_connection_id", bc.id)
+    logger.info("💾 business_connection_id сохранён в Redis: %s", bc.id)
 
 
 # Команда: проверить текущее business_connection_id
 @router.message(Command("my_business_conn"))
 async def cmd_my_business_conn(message: types.Message):
-    if message.business_connection_id:
-        await message.answer(f"📎 business_connection_id: <code>{message.business_connection_id}</code>")
+    conn_id = await get_conn_id_from_message_or_redis(message)
+    if conn_id:
+        await message.answer(f"📎 business_connection_id: <code>{conn_id}</code>")
     else:
-        await message.answer("❌ Нет business_connection_id в этом апдейте")
+        await message.answer("❌ business_connection_id не найден (ни в апдейте, ни в Redis)")
 
 
-# Команда: получить полное описание business_connection (если id знаем)
+# Команда: получить полное описание business_connection
 @router.message(Command("debug_business_conn"))
 async def cmd_debug_business_conn(message: types.Message, bot: Bot):
-    if not message.business_connection_id:
-        await message.answer("❌ В сообщении нет business_connection_id")
+    conn_id = await get_conn_id_from_message_or_redis(message)
+    if not conn_id:
+        await message.answer("❌ business_connection_id не найден")
         return
     try:
-        resp = await bot(GetBusinessConnection(business_connection_id=message.business_connection_id))
-        logger.info("📑 GetBusinessConnection response:\n%s", resp.model_dump_json(indent=2, ensure_ascii=False))
+        resp = await bot(GetBusinessConnection(business_connection_id=conn_id))
+        logger.info("📑 GetBusinessConnection response:\n%s", json.dumps(resp.model_dump(), indent=2, ensure_ascii=False))
         await message.answer("✅ GetBusinessConnection получен. Смотри лог.")
     except Exception as e:
         await message.answer(f"⚠️ Ошибка при GetBusinessConnection: {e}")
@@ -49,27 +71,28 @@ async def cmd_debug_business_conn(message: types.Message, bot: Bot):
 # Команда: вытащить все подарки бизнес-аккаунта
 @router.message(Command("debug_business_gifts"))
 async def cmd_debug_business_gifts(message: types.Message, bot: Bot):
-    if not message.business_connection_id:
-        await message.answer("❌ Нет business_connection_id")
+    conn_id = await get_conn_id_from_message_or_redis(message)
+    if not conn_id:
+        await message.answer("❌ business_connection_id не найден")
         return
     try:
         resp = await bot(GetBusinessAccountGifts(
-            business_connection_id=message.business_connection_id,
+            business_connection_id=conn_id,
             limit=100,
-            offset=str(0)
+            offset="0"
         ))
-        logger.info("🎁 GetBusinessAccountGifts response:\n%s", resp.model_dump_json(indent=2, ensure_ascii=False))
+        logger.info("🎁 GetBusinessAccountGifts response:\n%s", json.dumps(resp.model_dump(), indent=2, ensure_ascii=False))
         await message.answer(f"✅ Найдено {len(resp.gifts)} подарков. Полный лог в консоли.")
     except Exception as e:
         await message.answer(f"⚠️ Ошибка при GetBusinessAccountGifts: {e}")
 
 
-# Команда: посмотреть список доступных подарков (что бот может отправить)
+# Команда: посмотреть список доступных подарков
 @router.message(Command("debug_available_gifts"))
 async def cmd_debug_available_gifts(message: types.Message, bot: Bot):
     try:
         resp = await bot(GetAvailableGifts())
-        logger.info("🎁 GetAvailableGifts response:\n%s", resp.model_dump_json(indent=2, ensure_ascii=False))
+        logger.info("🎁 GetAvailableGifts response:\n%s", json.dumps(resp.model_dump(), indent=2, ensure_ascii=False))
         await message.answer(f"✅ Доступно {len(resp.gifts)} подарков. Полный лог смотри в консоли.")
     except Exception as e:
         await message.answer(f"⚠️ Ошибка при GetAvailableGifts: {e}")
