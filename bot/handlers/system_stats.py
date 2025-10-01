@@ -22,7 +22,7 @@ async def get_system_stats():
     """Получение статистики системы с game сервера"""
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get("https://rocket-app.top:3001/system-stats", timeout=10) as response:
+            async with session.get("https://rocket-app.top/system-stats", timeout=10) as response:
                 if response.status == 200:
                     return await response.json()
                 else:
