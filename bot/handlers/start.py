@@ -48,7 +48,7 @@ async def cmd_start(message: Message, bot: Bot, session: AsyncSession):
     if not_subscribed:
         kb = get_subscription_keyboard(not_subscribed)
         await message.answer(
-            "<a href=''>🚀</a> <b>Добро пожаловать в ROCKET!\n\n Для авторизации</b> <a href='https://t.me/rocket_gift'>подпишитесь</a> на канал и нажмите <b>«Продолжить».</b>",
+            "<a href='https://i.ibb.co/YFFsrwW3/5678867.jpg'>🚀</a> <b>Добро пожаловать в ROCKET!\n\n Для авторизации</b> <a href='https://t.me/rocket_gift'>подпишитесь</a> на канал и нажмите <b>«Продолжить».</b>",
             reply_markup=kb,
         )
         return
