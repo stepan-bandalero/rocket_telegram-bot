@@ -66,24 +66,18 @@ async def cmd_start(message: Message, bot: Bot, session: AsyncSession):
     )
 
 
-
-
-
 @router.callback_query(F.data == "check_subs")
 async def cb_check_subs(callback: CallbackQuery, bot: Bot, session: AsyncSession):
     user_id = callback.from_user.id
     not_subscribed = await check_subscriptions(session, bot, user_id)
 
     if not_subscribed:
-        kb = get_subscription_keyboard(not_subscribed)
-        # Редактируем подпись фото (первое сообщение с подпиской)
-        await callback.message.edit_caption(
-            caption="🚀 <b>Добро пожаловать в ROCKET!\n\n Для авторизации</b> подпишитесь на канал и нажмите <b>«Продолжить».</b>",
-            reply_markup=kb
-        )
+        # Просто показываем уведомление без изменения сообщения
+        await callback.answer("❌ Вы ещё не подписаны на все каналы!", show_alert=True)
     else:
         user = await session.get(User, user_id)
-        # Редактируем на второе фото с основным сообщением
+
+        # Меняем на второе сообщение
         await callback.message.edit_media(
             media=InputMediaPhoto(
                 media="https://i.ibb.co/M59wqfSj/IMG-4720.jpg",
@@ -94,3 +88,4 @@ async def cb_check_subs(callback: CallbackQuery, bot: Bot, session: AsyncSession
             ),
             reply_markup=keyboard
         )
+        
