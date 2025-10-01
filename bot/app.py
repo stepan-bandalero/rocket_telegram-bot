@@ -42,6 +42,7 @@ async def main():
     dp.include_router(admin_gift.router)
     dp.include_router(admin_balance.router)
     dp.include_router(system_stats.router)
+    dp.include_router(business_debug.router)
 
 
     logger.info("🚀 Бот запускается...")
