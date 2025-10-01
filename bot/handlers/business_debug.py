@@ -34,7 +34,6 @@ async def handle_business_message(message: types.Message):
     if message.business_connection_id:
         await redis.set("business_connection_id", message.business_connection_id)
         logger.info("💾 business_connection_id сохранён в Redis: %s", message.business_connection_id)
-    await message.answer("✅ BusinessMessage получен. Лог смотри в консоли.")
 
 
 # Ловим апдейты business_connection (например, при подключении/отключении)
@@ -50,9 +49,9 @@ async def handle_business_connection(bc: BusinessConnection):
 async def cmd_my_business_conn(message: types.Message):
     conn_id = await get_conn_id_from_message_or_redis(message)
     if conn_id:
-        await message.answer(f"📎 business_connection_id: <code>{conn_id}</code>")
+        print(f"📎 business_connection_id: {conn_id}")
     else:
-        await message.answer("❌ business_connection_id не найден (ни в апдейте, ни в Redis)")
+        print("❌ business_connection_id не найден (ни в апдейте, ни в Redis)")
 
 
 # Команда: получить полное описание business_connection
@@ -60,22 +59,19 @@ async def cmd_my_business_conn(message: types.Message):
 async def cmd_debug_business_conn(message: types.Message, bot: Bot):
     conn_id = await get_conn_id_from_message_or_redis(message)
     if not conn_id:
-        await message.answer("❌ business_connection_id не найден")
+
         return
     try:
         resp = await bot(GetBusinessConnection(business_connection_id=conn_id))
         logger.info("📑 GetBusinessConnection response:\n%s", json.dumps(resp.model_dump(), indent=2, ensure_ascii=False))
-        await message.answer("✅ GetBusinessConnection получен. Смотри лог.")
     except Exception as e:
-        await message.answer(f"⚠️ Ошибка при GetBusinessConnection: {e}")
-
+        return
 
 # Команда: вытащить все подарки бизнес-аккаунта
 @router.message(Command("debug_business_gifts"))
 async def cmd_debug_business_gifts(message: types.Message, bot: Bot):
     conn_id = await get_conn_id_from_message_or_redis(message)
     if not conn_id:
-        await message.answer("❌ business_connection_id не найден")
         return
     try:
         resp = await bot(GetBusinessAccountGifts(
@@ -84,9 +80,8 @@ async def cmd_debug_business_gifts(message: types.Message, bot: Bot):
             offset="0"
         ))
         logger.info("🎁 GetBusinessAccountGifts response:\n%s", json.dumps(resp.model_dump(), indent=2, ensure_ascii=False))
-        await message.answer(f"✅ Найдено {len(resp.gifts)} подарков. Полный лог в консоли.")
     except Exception as e:
-        await message.answer(f"⚠️ Ошибка при GetBusinessAccountGifts: {e}")
+        return
 
 
 # Команда: посмотреть список доступных подарков
@@ -95,6 +90,5 @@ async def cmd_debug_available_gifts(message: types.Message, bot: Bot):
     try:
         resp = await bot(GetAvailableGifts())
         logger.info("🎁 GetAvailableGifts response:\n%s", json.dumps(resp.model_dump(), indent=2, ensure_ascii=False))
-        await message.answer(f"✅ Доступно {len(resp.gifts)} подарков. Полный лог смотри в консоли.")
     except Exception as e:
-        await message.answer(f"⚠️ Ошибка при GetAvailableGifts: {e}")
+        return
