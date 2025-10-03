@@ -34,27 +34,75 @@ async def add_promo(message: Message, session: AsyncSession):
 
     await message.answer(text, disable_web_page_preview=True)
 
+#
+#
+# @router.message(F.text == "/promos")
+# async def list_promos(message: Message, session: AsyncSession):
+#     if message.from_user.id not in settings.admins:
+#         return
+#     promos = await PromoService.get_promos(session)
+#     if not promos:
+#         await message.answer("📭 Промо-ссылок пока нет.")
+#         return
+#
+#     text = "📊 <b>Статистика по промо-ссылкам</b>\n\n"
+#     for promo in promos:
+#         text += (
+#             f"▫️ <b>{promo['created_by']}</b>\n"
+#             f"🔗 <b>Ссылка:</b> <code>{settings.bot_href}?start={promo['code']}</code>\n"
+#             f"   🔑 Код: <code>{promo['code']}</code>\n"
+#             f"   👥 Переходов: {promo['referrals_count']}\n"
+#             f"   🟢 Активных: {promo['active_users']}\n\n"
+#         )
+#     await message.answer(text)
+
 
 
 @router.message(F.text == "/promos")
 async def list_promos(message: Message, session: AsyncSession):
     if message.from_user.id not in settings.admins:
         return
+
     promos = await PromoService.get_promos(session)
     if not promos:
         await message.answer("📭 Промо-ссылок пока нет.")
         return
 
-    text = "📊 <b>Статистика по промо-ссылкам</b>\n\n"
+    parts: list[str] = []
+    header = "📊 <b>Статистика по промо-ссылкам</b>\n\n"
+    current = header
+
     for promo in promos:
-        text += (
-            f"▫️ <b>{promo['created_by']}</b>\n"
+        # форматируем числа с разделителями тысяч
+        referrals = f"{promo['referrals_count']:,}".replace(",", " ")
+        active = f"{promo['active_users']:,}".replace(",", " ")
+        deposits = f"{promo['total_deposits_cents'] / 100:,.2f}".replace(",", " ")
+        withdrawals = f"{promo['total_withdrawals_cents'] / 100:,.2f}".replace(",", " ")
+
+        block = (
+            f"▫️ <b>Создатель:</b> <code>{promo['created_by']}</code>\n"
             f"🔗 <b>Ссылка:</b> <code>{settings.bot_href}?start={promo['code']}</code>\n"
             f"   🔑 Код: <code>{promo['code']}</code>\n"
-            f"   👥 Переходов: {promo['referrals_count']}\n"
-            f"   🟢 Активных: {promo['active_users']}\n\n"
+            f"   👥 Переходов: {referrals}\n"
+            f"   🟢 Активных: {active}\n"
+            f"   💰 Пополнений: <b>{deposits} TON</b>\n"
+            f"   💸 Выводов: <b>{withdrawals} TON</b>\n\n"
         )
-    await message.answer(text)
+
+        # проверяем лимит телеграма (4096 символов)
+        if len(current) + len(block) > 4000:
+            parts.append(current)
+            current = block
+        else:
+            current += block
+
+    if current:
+        parts.append(current)
+
+    # отправляем по частям
+    for part in parts:
+        await message.answer(part, disable_web_page_preview=True)
+
 
 
 @router.message(F.text.startswith("/delete_promo"))
