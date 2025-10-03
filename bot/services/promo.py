@@ -42,7 +42,7 @@ class PromoService:
 
         # для каждого промо считаем активных пользователей
         data = []
-        for promo_id, title, code, referrals_count, users_count in promos:
+        for promo_id, code, referrals_count, users_count in promos:
             from sqlalchemy import or_
 
             active_query = await session.execute(
