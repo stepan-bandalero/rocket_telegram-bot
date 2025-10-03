@@ -1,3 +1,6 @@
+from sqlalchemy import Column, BigInteger, Text, TIMESTAMP, func, ForeignKey, Integer
+from bot.db import Base
+
 class WithdrawRequest(Base):
     __tablename__ = "withdraw_requests"
 
