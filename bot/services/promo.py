@@ -30,7 +30,6 @@ class PromoService:
         result = await session.execute(
             select(
                 PromoLink.id,
-                PromoLink.title,
                 PromoLink.code,
                 func.count(PromoReferral.id).label("referrals_count"),
                 func.count(func.nullif(User.telegram_id, None)).label("users_count"),
@@ -67,7 +66,6 @@ class PromoService:
 
             data.append({
                 "id": promo_id,
-                "title": title,
                 "code": code,
                 "referrals_count": referrals_count,
                 "active_users": active_users
