@@ -48,7 +48,7 @@ async def list_promos(message: Message, session: AsyncSession):
     text = "📊 <b>Статистика по промо-ссылкам</b>\n\n"
     for promo in promos:
         text += (
-            f"▫️ <b>{promo['title']}</b>\n"
+            f"▫️ <b>{promo['created_by']}</b>\n"
             f"🔗 <b>Ссылка:</b> <code>{settings.bot_href}?start={promo['code']}</code>\n"
             f"   🔑 Код: <code>{promo['code']}</code>\n"
             f"   👥 Переходов: {promo['referrals_count']}\n"
