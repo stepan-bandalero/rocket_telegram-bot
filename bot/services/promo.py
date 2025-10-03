@@ -8,21 +8,21 @@ from bot.models.user_gift import UserGift
 
 class PromoService:
     @staticmethod
-    async def create_promo(session: AsyncSession, title: str, created_by: int) -> PromoLink:
-        # генерируем уникальный код
+    async def create_promo(session: AsyncSession, created_by: int) -> PromoLink:
         while True:
-            code = secrets.token_hex(4)  # короткий уникальный код
+            code = secrets.token_hex(4)
             exists_query = await session.execute(
                 select(PromoLink).where(PromoLink.code == code)
             )
             if not exists_query.scalar_one_or_none():
                 break
 
-        promo = PromoLink(code=code, title=title, created_by=created_by)
+        promo = PromoLink(code=code, created_by=created_by)
         session.add(promo)
         await session.commit()
         await session.refresh(promo)
         return promo
+
 
     @staticmethod
     async def get_promos(session: AsyncSession):

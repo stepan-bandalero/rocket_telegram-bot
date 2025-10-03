@@ -16,25 +16,24 @@ async def add_promo(message: Message, session: AsyncSession):
         return
 
     try:
-        # всё после команды — это название (с пробелами)
-        title = message.text.split(maxsplit=1)[1].strip()
-    except IndexError:
-        await message.answer("❌ Используй: <code>/add_promo &lt;название&gt;</code>")
+        _, tg_id_str = message.text.split(maxsplit=1)
+        tg_id = int(tg_id_str.strip())
+    except (ValueError, IndexError):
+        await message.answer("❌ Используй: <code>/add_promo &lt;telegram_id&gt;</code>")
         return
 
-    promo = await PromoService.create_promo(session, title, message.from_user.id)
+    promo = await PromoService.create_promo(session, tg_id)
 
     promo_url = f"{settings.bot_href}?start={promo.code}"
 
     text = (
-        "🎉 <b>Промо-ссылка создана!</b>\n\n"
+        "🎉 <b>Реферальная ссылка создана!</b>\n\n"
         f"🔗 <b>Ссылка:</b> <code>{promo_url}</code>\n"
-        f"🏷 <b>Название:</b> {promo.title}\n"
-        f"🔑 <b>Код:</b> <code>{promo.code}</code>\n"
-        f"👤 <b>Создатель:</b> <code>{promo.created_by}</code>"
+        f"👤 <b>Админ:</b> <code>{promo.created_by}</code>"
     )
 
     await message.answer(text, disable_web_page_preview=True)
+
 
 
 @router.message(F.text == "/promos")
