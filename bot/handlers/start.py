@@ -18,7 +18,7 @@ keyboard = InlineKeyboardMarkup(
             web_app=WebAppInfo(url="https://rocket-app.top")
         )],        # Вторая строка - две кнопки
         [
-            InlineKeyboardButton(text="📗 Отзывы", url="https://t.me/rocket_gift"),
+            InlineKeyboardButton(text="📗 Обучение", url="https://telegra.ph/Obuchenie-Rocket-10-03-2"),
             InlineKeyboardButton(text="👩🏼‍💻 Менеджер", url="https://t.me/GiftsToRocket")
         ]
     ]
