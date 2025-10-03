@@ -19,7 +19,7 @@ keyboard = InlineKeyboardMarkup(
         )],        # Вторая строка - две кнопки
         [
             InlineKeyboardButton(text="📗 Обучение", url="https://telegra.ph/Obuchenie-Rocket-10-03-2"),
-            InlineKeyboardButton(text="👩🏼‍💻 Менеджер", url="https://t.me/GiftsToRocket")
+            InlineKeyboardButton(text="👩🏼‍💻 Менеджер", url="https://t.me/Sup_Rocket")
         ]
     ]
 )
