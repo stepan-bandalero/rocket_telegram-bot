@@ -31,6 +31,7 @@ class PromoService:
             select(
                 PromoLink.id,
                 PromoLink.code,
+                PromoLink.created_by,  # ✅ добавляем владельца ссылки
                 func.count(PromoReferral.id).label("referrals_count"),
                 func.count(func.nullif(User.telegram_id, None)).label("users_count"),
             )
@@ -40,9 +41,8 @@ class PromoService:
         )
         promos = result.all()
 
-        # для каждого промо считаем активных пользователей
         data = []
-        for promo_id, code, referrals_count, users_count in promos:
+        for promo_id, code, created_by, referrals_count, users_count in promos:
             from sqlalchemy import or_
 
             active_query = await session.execute(
@@ -67,6 +67,7 @@ class PromoService:
             data.append({
                 "id": promo_id,
                 "code": code,
+                "created_by": created_by,  # ✅ возвращаем в словарь
                 "referrals_count": referrals_count,
                 "active_users": active_users
             })
