@@ -9,6 +9,7 @@ class PromoLink(Base):
     id = Column(Integer, primary_key=True)
     code = Column(Text, unique=True, nullable=False)
     created_by = Column(BigInteger, nullable=False)
+    referral_percentage = Column(Integer, nullable=False, default=40)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     referrals = relationship("PromoReferral", back_populates="promo")
 

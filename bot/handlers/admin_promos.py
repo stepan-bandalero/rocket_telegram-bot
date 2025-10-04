@@ -9,6 +9,31 @@ from bot.middlewares.db import DataBaseSessionMiddleware
 router = Router()
 router.message.middleware(DataBaseSessionMiddleware())
 
+#
+# @router.message(F.text.startswith("/add_promo"))
+# async def add_promo(message: Message, session: AsyncSession):
+#     if message.from_user.id not in settings.admins:
+#         return
+#
+#     try:
+#         _, tg_id_str = message.text.split(maxsplit=1)
+#         tg_id = int(tg_id_str.strip())
+#     except (ValueError, IndexError):
+#         await message.answer("❌ Используй: <code>/add_promo &lt;telegram_id&gt;</code>")
+#         return
+#
+#     promo = await PromoService.create_promo(session, tg_id)
+#
+#     promo_url = f"{settings.bot_href}?start={promo.code}"
+#
+#     text = (
+#         "🎉 <b>Реферальная ссылка создана!</b>\n\n"
+#         f"🔗 <b>Ссылка:</b> <code>{promo_url}</code>\n"
+#         f"👤 <b>Админ:</b> <code>{promo.created_by}</code>"
+#     )
+#
+#     await message.answer(text, disable_web_page_preview=True)
+
 
 @router.message(F.text.startswith("/add_promo"))
 async def add_promo(message: Message, session: AsyncSession):
@@ -16,45 +41,29 @@ async def add_promo(message: Message, session: AsyncSession):
         return
 
     try:
-        _, tg_id_str = message.text.split(maxsplit=1)
+        _, tg_id_str, percent_str = message.text.split(maxsplit=2)
         tg_id = int(tg_id_str.strip())
+        percent = int(percent_str.strip())
+
+        if not (0 < percent <= 100):
+            raise ValueError("invalid percent")
+
     except (ValueError, IndexError):
-        await message.answer("❌ Используй: <code>/add_promo &lt;telegram_id&gt;</code>")
+        await message.answer("❌ Используй: <code>/add_promo &lt;telegram_id&gt; &lt;процент&gt;</code>")
         return
 
-    promo = await PromoService.create_promo(session, tg_id)
+    promo = await PromoService.create_promo(session, tg_id, percent)
 
     promo_url = f"{settings.bot_href}?start={promo.code}"
 
     text = (
         "🎉 <b>Реферальная ссылка создана!</b>\n\n"
         f"🔗 <b>Ссылка:</b> <code>{promo_url}</code>\n"
-        f"👤 <b>Админ:</b> <code>{promo.created_by}</code>"
+        f"👤 <b>Админ:</b> <code>{promo.created_by}</code>\n"
+        f"📈 <b>Процент:</b> <code>{promo.referral_percentage}%</code>"
     )
 
     await message.answer(text, disable_web_page_preview=True)
-
-#
-#
-# @router.message(F.text == "/promos")
-# async def list_promos(message: Message, session: AsyncSession):
-#     if message.from_user.id not in settings.admins:
-#         return
-#     promos = await PromoService.get_promos(session)
-#     if not promos:
-#         await message.answer("📭 Промо-ссылок пока нет.")
-#         return
-#
-#     text = "📊 <b>Статистика по промо-ссылкам</b>\n\n"
-#     for promo in promos:
-#         text += (
-#             f"▫️ <b>{promo['created_by']}</b>\n"
-#             f"🔗 <b>Ссылка:</b> <code>{settings.bot_href}?start={promo['code']}</code>\n"
-#             f"   🔑 Код: <code>{promo['code']}</code>\n"
-#             f"   👥 Переходов: {promo['referrals_count']}\n"
-#             f"   🟢 Активных: {promo['active_users']}\n\n"
-#         )
-#     await message.answer(text)
 
 
 
@@ -83,6 +92,7 @@ async def list_promos(message: Message, session: AsyncSession):
             f"▫️ <b>Создатель:</b> <code>{promo['created_by']}</code>\n"
             f"🔗 <b>Ссылка:</b> <code>{settings.bot_href}?start={promo['code']}</code>\n"
             f"   🔑 Код: <code>{promo['code']}</code>\n"
+            f"   📈 Процент: <b>{promo['referral_percentage']}%</b>\n"
             f"   👥 Переходов: {referrals}\n"
             f"   🟢 Активных: {active}\n"
             f"   💰 Пополнений: <b>{deposits} TON</b>\n"

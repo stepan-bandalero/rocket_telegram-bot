@@ -12,20 +12,34 @@ from bot.models.gift_withdrawals import GiftWithdrawal
 
 class PromoService:
     @staticmethod
-    async def create_promo(session: AsyncSession, created_by: int) -> PromoLink:
-        while True:
-            code = secrets.token_hex(4)
-            exists_query = await session.execute(
-                select(PromoLink).where(PromoLink.code == code)
-            )
-            if not exists_query.scalar_one_or_none():
-                break
-
-        promo = PromoLink(code=code, created_by=created_by)
+    async def create_promo(session: AsyncSession, created_by: int, referral_percentage: int):
+        import secrets
+        code = secrets.token_urlsafe(6)
+        promo = PromoLink(
+            code=code,
+            created_by=created_by,
+            referral_percentage=referral_percentage
+        )
         session.add(promo)
         await session.commit()
         await session.refresh(promo)
         return promo
+
+    # async def create_promo(session: AsyncSession, created_by: int) -> PromoLink:
+    #     while True:
+    #         code = secrets.token_hex(4)
+    #         exists_query = await session.execute(
+    #             select(PromoLink).where(PromoLink.code == code)
+    #         )
+    #         if not exists_query.scalar_one_or_none():
+    #             break
+    #
+    #     promo = PromoLink(code=code, created_by=created_by)
+    #     session.add(promo)
+    #     await session.commit()
+    #     await session.refresh(promo)
+    #     return promo
+
 
 
     # @staticmethod
@@ -77,38 +91,127 @@ class PromoService:
     #         })
     #     return data
 
+    # @staticmethod
+    # async def get_promos(session: AsyncSession):
+    #
+    #     # ----------------------------------------------------
+    #
+    #     # 1) Базовая выборка: промо + количество переходов + пользователей
+    #     result = await session.execute(
+    #         select(
+    #             PromoLink.id,
+    #             PromoLink.code,
+    #             PromoLink.created_by,
+    #             func.count(PromoReferral.id).label("referrals_count"),
+    #             func.count(func.nullif(User.telegram_id, None)).label("users_count"),
+    #         )
+    #         .outerjoin(PromoReferral, PromoReferral.promo_id == PromoLink.id)
+    #         .outerjoin(User, User.telegram_id == PromoReferral.user_id)
+    #         .group_by(PromoLink.id, PromoLink.code, PromoLink.created_by)
+    #     )
+    #     promos = result.all()
+    #
+    #     data = []
+    #     for promo_id, code, created_by, referrals_count, users_count in promos:
+    #         # если у промо нет рефералов — сразу нули
+    #         if not referrals_count:
+    #             active_users = 0
+    #             total_deposits = 0
+    #             total_withdrawals = 0
+    #         else:
+    #             # подзапрос списка user_id для данного promo_id
+    #             referrals_subq = select(PromoReferral.user_id).where(PromoReferral.promo_id == promo_id)
+    #
+    #             # 2) Активные пользователи — distinct user_id из user_transactions с type='deposit'
+    #             active_q = await session.execute(
+    #                 select(func.count(func.distinct(UserTransaction.user_id)))
+    #                 .where(
+    #                     UserTransaction.user_id.in_(referrals_subq),
+    #                     UserTransaction.type == "deposit",
+    #                 )
+    #             )
+    #             active_users = int(active_q.scalar() or 0)
+    #
+    #             # 3) Сумма всех пополнений рефералов (user_transactions.type='deposit')
+    #             deposits_q = await session.execute(
+    #                 select(func.coalesce(func.sum(UserTransaction.amount), 0))
+    #                 .where(
+    #                     UserTransaction.user_id.in_(referrals_subq),
+    #                     UserTransaction.type == "deposit",
+    #                 )
+    #             )
+    #             total_deposits = int(deposits_q.scalar() or 0)
+    #
+    #             # 4) Сумма выводов TON: withdraw_requests.status='done'
+    #             ton_with_q = await session.execute(
+    #                 select(func.coalesce(func.sum(WithdrawRequest.amount), 0))
+    #                 .where(
+    #                     WithdrawRequest.user_id.in_(referrals_subq),
+    #                     WithdrawRequest.status == "done",
+    #                 )
+    #             )
+    #             ton_withdrawals = int(ton_with_q.scalar() or 0)
+    #
+    #             # 5) Сумма выводов подарков: gift_withdrawals.status='done'
+    #             gift_with_q = await session.execute(
+    #                 select(func.coalesce(func.sum(GiftWithdrawal.purchase_price_cents), 0))
+    #                 .where(
+    #                     GiftWithdrawal.user_id.in_(referrals_subq),
+    #                     GiftWithdrawal.status == "done",
+    #                 )
+    #             )
+    #             gift_withdrawals = int(gift_with_q.scalar() or 0)
+    #
+    #             total_withdrawals = ton_withdrawals + gift_withdrawals
+    #
+    #         data.append({
+    #             "id": promo_id,
+    #             "code": code,
+    #             "created_by": created_by,
+    #             "referrals_count": int(referrals_count or 0),
+    #             "users_count": int(users_count or 0),
+    #             "active_users": int(active_users),
+    #             # суммы возвращаем в тех единицах, в которых хранятся в БД (cents/DB-units)
+    #             "total_deposits_cents": int(total_deposits),
+    #             "total_withdrawals_cents": int(total_withdrawals),
+    #         })
+    #
+    #     return data
+
     @staticmethod
     async def get_promos(session: AsyncSession):
-
-        # ----------------------------------------------------
-
-        # 1) Базовая выборка: промо + количество переходов + пользователей
+        # 1) Базовая выборка: промо + количество переходов + пользователей + процент
         result = await session.execute(
             select(
                 PromoLink.id,
                 PromoLink.code,
                 PromoLink.created_by,
+                PromoLink.referral_percentage,
                 func.count(PromoReferral.id).label("referrals_count"),
                 func.count(func.nullif(User.telegram_id, None)).label("users_count"),
             )
             .outerjoin(PromoReferral, PromoReferral.promo_id == PromoLink.id)
             .outerjoin(User, User.telegram_id == PromoReferral.user_id)
-            .group_by(PromoLink.id, PromoLink.code, PromoLink.created_by)
+            .group_by(
+                PromoLink.id,
+                PromoLink.code,
+                PromoLink.created_by,
+                PromoLink.referral_percentage,
+            )
         )
-        promos = result.all()
 
+        promos = result.all()
         data = []
-        for promo_id, code, created_by, referrals_count, users_count in promos:
-            # если у промо нет рефералов — сразу нули
+
+        for promo_id, code, created_by, referral_percentage, referrals_count, users_count in promos:
             if not referrals_count:
                 active_users = 0
                 total_deposits = 0
                 total_withdrawals = 0
             else:
-                # подзапрос списка user_id для данного promo_id
                 referrals_subq = select(PromoReferral.user_id).where(PromoReferral.promo_id == promo_id)
 
-                # 2) Активные пользователи — distinct user_id из user_transactions с type='deposit'
+                # активные
                 active_q = await session.execute(
                     select(func.count(func.distinct(UserTransaction.user_id)))
                     .where(
@@ -118,7 +221,7 @@ class PromoService:
                 )
                 active_users = int(active_q.scalar() or 0)
 
-                # 3) Сумма всех пополнений рефералов (user_transactions.type='deposit')
+                # пополнения
                 deposits_q = await session.execute(
                     select(func.coalesce(func.sum(UserTransaction.amount), 0))
                     .where(
@@ -128,7 +231,7 @@ class PromoService:
                 )
                 total_deposits = int(deposits_q.scalar() or 0)
 
-                # 4) Сумма выводов TON: withdraw_requests.status='done'
+                # выводы TON
                 ton_with_q = await session.execute(
                     select(func.coalesce(func.sum(WithdrawRequest.amount), 0))
                     .where(
@@ -138,7 +241,7 @@ class PromoService:
                 )
                 ton_withdrawals = int(ton_with_q.scalar() or 0)
 
-                # 5) Сумма выводов подарков: gift_withdrawals.status='done'
+                # выводы подарков
                 gift_with_q = await session.execute(
                     select(func.coalesce(func.sum(GiftWithdrawal.purchase_price_cents), 0))
                     .where(
@@ -154,10 +257,10 @@ class PromoService:
                 "id": promo_id,
                 "code": code,
                 "created_by": created_by,
+                "referral_percentage": int(referral_percentage or 0),
                 "referrals_count": int(referrals_count or 0),
                 "users_count": int(users_count or 0),
                 "active_users": int(active_users),
-                # суммы возвращаем в тех единицах, в которых хранятся в БД (cents/DB-units)
                 "total_deposits_cents": int(total_deposits),
                 "total_withdrawals_cents": int(total_withdrawals),
             })
