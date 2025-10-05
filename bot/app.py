@@ -39,13 +39,14 @@ async def main():
     dp.include_router(admin_channels.router)
     dp.include_router(admin_broadcast.router)
     dp.include_router(admin_users.router)
+    dp.include_router(gift_promos.router)
     dp.include_router(admin_gift.router)
     dp.include_router(admin_balance.router)
     dp.include_router(system_stats.router)
     dp.include_router(business_debug.router)
     dp.include_router(gift_payout.router)
     dp.include_router(ton_requests.router)
-    dp.include_router(gift_promos.router)
+
 
 
 
