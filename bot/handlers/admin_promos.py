@@ -89,7 +89,7 @@ async def list_promos(message: Message, session: AsyncSession):
         withdrawals = f"{promo['total_withdrawals_cents'] / 100:,.2f}".replace(",", " ")
 
         block = (
-            f"▫️ <b>Создатель:</b> <code>{promo['created_by']}</code>\n"
+            f"▫️ <b>Админ:</b> <code>{promo['created_by']}</code>\n"
             f"🔗 <b>Ссылка:</b> <code>{settings.bot_href}?start={promo['code']}</code>\n"
             f"   🔑 Код: <code>{promo['code']}</code>\n"
             f"   📈 Процент: <b>{promo['referral_percentage']}%</b>\n"

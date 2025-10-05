@@ -13,4 +13,3 @@ class GiftCatalog(Base):
     image_url = Column(Text, nullable=False)
     is_active = Column(Boolean, default=True)
 
-    # Связь с UserGift
