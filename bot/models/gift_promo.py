@@ -36,6 +36,17 @@ class GiftPromo(Base):
     gift = relationship("GiftCatalog")
 
 
+#
+# class GiftPromoUse(Base):
+#     __tablename__ = "gift_promo_uses"
+#
+#     id = Column(BigInteger, primary_key=True, autoincrement=True)
+#     promo_id = Column(BigInteger, ForeignKey("gift_promos.id", ondelete="CASCADE"))
+#     user_id = Column(BigInteger, ForeignKey("users.telegram_id"))
+#     used_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+#
+#     promo = relationship("GiftPromo", back_populates="uses")
+#     user = relationship("User")
 
 class GiftPromoUse(Base):
     __tablename__ = "gift_promo_uses"
@@ -43,7 +54,10 @@ class GiftPromoUse(Base):
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     promo_id = Column(BigInteger, ForeignKey("gift_promos.id", ondelete="CASCADE"))
     user_id = Column(BigInteger, ForeignKey("users.telegram_id"))
+    user_gift_id = Column(BigInteger, ForeignKey("user_gifts.id", ondelete="SET NULL"))
     used_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     promo = relationship("GiftPromo", back_populates="uses")
     user = relationship("User")
+    user_gift = relationship("UserGift")  # ← связь с подарком
+
