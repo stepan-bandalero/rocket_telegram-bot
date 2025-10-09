@@ -12,7 +12,6 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
-        # Первая строка - одна кнопка "Запустить"
         [InlineKeyboardButton(
             text="▶️ Запустить",
             web_app=WebAppInfo(url="https://rocket-app.top")
@@ -40,7 +39,7 @@ async def cmd_start(message: Message, bot: Bot, session: AsyncSession):
             telegram_id=message.from_user.id,
             username=message.from_user.username,
             first_name=message.from_user.first_name,
-            ton_balance=0
+            ton_balance=10
         )
         session.add(user)
         await session.flush()
@@ -77,12 +76,10 @@ async def cb_check_subs(callback: CallbackQuery, bot: Bot, session: AsyncSession
     not_subscribed = await check_subscriptions(session, bot, user_id)
 
     if not_subscribed:
-        # Показываем плашку вверху чата на несколько секунд
         await callback.answer("❌ Вы ещё не подписаны на все каналы!", show_alert=False)
     else:
         user = await session.get(User, user_id)
 
-        # Меняем на второе сообщение
         await callback.message.edit_media(
             media=InputMediaPhoto(
                 media="https://i.ibb.co/M59wqfSj/IMG-4720.jpg",
