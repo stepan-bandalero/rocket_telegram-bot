@@ -42,6 +42,7 @@ class BroadcastService:
                 break
 
             try:
+                await asyncio.sleep(0.1)
                 # Основной контент
                 if task.content_type == "text":
                     await BroadcastService._send_text(bot, user_id, task)
@@ -58,10 +59,14 @@ class BroadcastService:
                 task.failed += 1
 
             # Обновляем прогресс каждые 10 отправок
+            # Обновляем прогресс каждые 10 отправок
             if task.sent % 10 == 0:
-                async with SessionLocal() as session:
-                    session.add(task)
-                    await session.commit()
+                try:
+                    async with SessionLocal() as session:
+                        session.add(task)
+                        await session.commit()
+                except Exception as e:
+                    print(f"Ошибка сохранения прогресса: {e}")
 
         if not stop_event.is_set():
             task.status = "done"
@@ -72,36 +77,6 @@ class BroadcastService:
             await session.commit()
 
         BroadcastService.stop_flags.pop(task.id, None)
-
-    # @staticmethod
-    # async def _send_text(bot: Bot, user_id: int, task: BroadcastTask):
-    #     if task.buttons:
-    #         kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(**b) for b in task.buttons]])
-    #         await bot.send_message(user_id, task.text, reply_markup=kb, parse_mode="HTML")
-    #     else:
-    #         await bot.send_message(user_id, task.text, parse_mode="HTML")
-    #
-    # @staticmethod
-    # async def _send_photo(bot: Bot, user_id: int, task: BroadcastTask):
-    #     if task.buttons:
-    #         kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(**b) for b in task.buttons]])
-    #         await bot.send_photo(user_id, task.media, caption=task.text, reply_markup=kb, parse_mode="HTML")
-    #     else:
-    #         await bot.send_photo(user_id, task.media, caption=task.text, parse_mode="HTML")
-    #
-    # @staticmethod
-    # async def _send_video(bot: Bot, user_id: int, task: BroadcastTask):
-    #     if task.buttons:
-    #         kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(**b) for b in task.buttons]])
-    #         await bot.send_video(user_id, task.media, caption=task.text, reply_markup=kb, parse_mode="HTML")
-    #     else:
-    #         await bot.send_video(user_id, task.media, caption=task.text, parse_mode="HTML")
-    #
-    # @staticmethod
-    # async def _send_video_note(bot: Bot, user_id: int, task: BroadcastTask):
-    #     await bot.send_video_note(user_id, task.media)
-    #     if task.text:
-    #         await BroadcastService._send_text(bot, user_id, task)
 
     # bot/services/broadcast.py
     @staticmethod
