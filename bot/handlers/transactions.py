@@ -11,7 +11,7 @@ from bot.models.user_transaction import UserTransaction
 router = Router()
 
 PAGE_SIZE = 8  # транзакций на странице
-
+MSK = timezone(timedelta(hours=3))
 
 # --- Запрос страницы транзакций ---
 async def get_transactions_page(session: AsyncSession, page: int):
