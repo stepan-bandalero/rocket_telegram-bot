@@ -2,7 +2,7 @@ from aiogram import F, Router
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from sqlalchemy import func, select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from bot.config import settings
 from bot.db import SessionLocal
