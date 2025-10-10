@@ -71,14 +71,14 @@ def format_transaction_line(index: int, tx: UserTransaction) -> str:
     dt = tx.created_at
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
-    formatted_time = dt.astimezone(timezone.utc).strftime("%d.%m.%Y %H:%M:%S UTC")
+    formatted_time = dt.astimezone(MSK).strftime("%d.%m.%Y %H:%M:%S MSK")
 
     # Тип операции
     type_label = "💰 Пополнение" if tx.type == "deposit" else "📤 Списание"
     currency_icon = "🎁 Gift" if tx.currency == "gift" else "💎 TON"
 
     # Сумма (делим на 2 и округляем до 2 знаков)
-    amount_val = round(tx.amount / 2 / 100, 2)  # если amount хранится в сотнях
+    amount_val = round(tx.amount / 100, 2)  # если amount хранится в сотнях
     amount_str = f"{amount_val:.2f}"
 
     return (
