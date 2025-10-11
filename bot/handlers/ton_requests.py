@@ -193,6 +193,27 @@ async def ton_current_page(cb: CallbackQuery):
 
 
 # === Подтверждение / Отклонение ===
+# async def _update_status(cb: CallbackQuery, withdrawal_id: int, approved: bool):
+#     async with SessionLocal() as session:
+#         stmt = select(WithdrawRequest).where(WithdrawRequest.id == withdrawal_id, WithdrawRequest.status == "failed")
+#         result = await session.execute(stmt)
+#         withdrawal = result.scalar_one_or_none()
+#         if not withdrawal:
+#             await cb.answer("❌ Заявка не найдена или уже обработана!")
+#             return
+#
+#         withdrawal.status = "done"
+#         await session.commit()
+#
+#     mark = "✅ ПОДТВЕРЖДЕНО" if approved else "❌ ОТКЛОНЕНО"
+#     await cb.answer("✅ Готово!" if approved else "❌ Отклонено!")
+#
+#     updated_text = cb.message.text + f"\n\n{mark} АДМИНОМ\n⏰ Время: {datetime.now().strftime('%d.%m.%Y %H:%M')}"
+#     kb = cb.message.reply_markup.inline_keyboard
+#     new_kb = [row for row in kb if not any(btn.callback_data.startswith(("ton_confirm:", "ton_reject:")) for btn in row)]
+#     await cb.message.edit_text(updated_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=new_kb), parse_mode="HTML")
+
+
 async def _update_status(cb: CallbackQuery, withdrawal_id: int, approved: bool):
     async with SessionLocal() as session:
         stmt = select(WithdrawRequest).where(WithdrawRequest.id == withdrawal_id, WithdrawRequest.status == "failed")
@@ -202,16 +223,29 @@ async def _update_status(cb: CallbackQuery, withdrawal_id: int, approved: bool):
             await cb.answer("❌ Заявка не найдена или уже обработана!")
             return
 
-        withdrawal.status = "done"
+        if approved:
+            withdrawal.status = "pending"
+            withdrawal.error_text = None
+            withdrawal.retries = 0
+        else:
+            withdrawal.status = "done"
+
         await session.commit()
 
-    mark = "✅ ПОДТВЕРЖДЕНО" if approved else "❌ ОТКЛОНЕНО"
+    mark = "✅ ПОДТВЕРЖДЕНО (переведено в pending)" if approved else "❌ ОТКЛОНЕНО"
     await cb.answer("✅ Готово!" if approved else "❌ Отклонено!")
 
     updated_text = cb.message.text + f"\n\n{mark} АДМИНОМ\n⏰ Время: {datetime.now().strftime('%d.%m.%Y %H:%M')}"
     kb = cb.message.reply_markup.inline_keyboard
-    new_kb = [row for row in kb if not any(btn.callback_data.startswith(("ton_confirm:", "ton_reject:")) for btn in row)]
-    await cb.message.edit_text(updated_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=new_kb), parse_mode="HTML")
+    new_kb = [
+        row for row in kb
+        if not any(btn.callback_data.startswith(("ton_confirm:", "ton_reject:")) for btn in row)
+    ]
+    await cb.message.edit_text(
+        updated_text,
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=new_kb),
+        parse_mode="HTML"
+    )
 
 
 @router.callback_query(F.data.startswith("ton_confirm:"))

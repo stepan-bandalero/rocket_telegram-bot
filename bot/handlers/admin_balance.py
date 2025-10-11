@@ -47,7 +47,7 @@ async def manage_balance(message: Message):
         return
 
     amount = int(amount_str)
-    if amount <= 0:
+    if amount < 0:
         await message.answer("❌ Сумма должна быть больше 0.")
         return
 
