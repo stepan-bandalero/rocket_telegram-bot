@@ -27,14 +27,14 @@ def build_pagination_keyboard(section: str, user_id: int, page: int, has_next: b
     nav = []
 
     if page > 1:
-        nav.append(InlineKeyboardButton("⬅", callback_data=f"{section}:{user_id}:{page - 1}"))
+        nav.append(InlineKeyboardButton(text="⬅", callback_data=f"{section}:{user_id}:{page - 1}"))
     if has_next:
-        nav.append(InlineKeyboardButton("➡", callback_data=f"{section}:{user_id}:{page + 1}"))
+        nav.append(InlineKeyboardButton(text="➡", callback_data=f"{section}:{user_id}:{page + 1}"))
 
     if nav:
         buttons.append(nav)
 
-    buttons.append([InlineKeyboardButton("↩ Назад", callback_data=f"user_info:{user_id}")])
+    buttons.append([InlineKeyboardButton(text="↩ Назад", callback_data=f"user_info:{user_id}")])
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -50,6 +50,14 @@ def build_user_actions_keyboard(user_id: int) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="💰 Пополнения", callback_data=f"user_deposits:{user_id}:1"),
                 InlineKeyboardButton(text="🏦 Выводы", callback_data=f"user_withdraws:{user_id}:1"),
             ],
+        ]
+    )
+
+
+def build_back_button(user_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="↩ Назад", callback_data=f"user_info:{user_id}")]
         ]
     )
 
@@ -312,7 +320,12 @@ async def cb_user_withdraws(cb: CallbackQuery):
         lines.append(f"🏦 TON — {w.amount / 100:.2f} TON — {w.created_at.strftime('%Y-%m-%d %H:%M')}")
 
     for g in gift_withdraws:
-        lines.append(f"🎁 Gift — {g.purchase_price_cents / 100:.2f} TON — {g.created_at.strftime('%Y-%m-%d %H:%M')}")
+        if g.purchase_price_cents is None:
+            price_str = "❓ unknown TON"
+        else:
+            price_str = f"{g.purchase_price_cents / 100:.2f} TON"
+
+        lines.append(f"🎁 Gift — {price_str} — {g.created_at.strftime('%Y-%m-%d %H:%M')}")
 
     if not lines:
         await cb.message.edit_text("🏦 Нет завершённых выводов.", reply_markup=build_back_button(user_id))
