@@ -10,6 +10,8 @@ from bot.models.withdraw_request import WithdrawRequest
 from bot.models.gift_withdrawals import GiftWithdrawal
 from bot.models.user_transaction import UserTransaction
 
+from sqlalchemy.orm import selectinload
+
 
 from bot.config import settings
 
@@ -195,12 +197,14 @@ async def cb_user_info(cb: CallbackQuery):
 # ==================================================
 # Универсальный шаблон для разделов с пагинацией
 # ==================================================
-async def paginate_query(model, user_id: int, page: int, order_field, filter_field, filter_value, extra_filters=None):
+async def paginate_query(model, user_id: int, page: int, order_field, filter_field, filter_value, extra_filters=None, options=None):
     offset = (page - 1) * ITEMS_PER_PAGE
     stmt = select(model).where(getattr(model, filter_field) == filter_value)
     if extra_filters:
         for f in extra_filters:
             stmt = stmt.where(f)
+    if options:
+        stmt = stmt.options(*options)
     stmt = stmt.order_by(order_field.desc()).offset(offset).limit(ITEMS_PER_PAGE + 1)
     async with SessionLocal() as session:
         result = await session.execute(stmt)
@@ -288,8 +292,15 @@ async def cb_user_deposits(cb: CallbackQuery):
 async def cb_user_gifts(cb: CallbackQuery):
     _, user_id, page = cb.data.split(":")
     user_id, page = int(user_id), int(page)
-    gifts, has_next = await paginate_query(UserGift, user_id, page, UserGift.received_at, "user_id", user_id)
-
+    gifts, has_next = await paginate_query(
+        UserGift,
+        user_id,
+        page,
+        UserGift.received_at,
+        "user_id",
+        user_id,
+        options=[selectinload(UserGift.gift_catalog)]
+    )
     if not gifts:
         await cb.message.edit_text("💎 Нет подарков.", reply_markup=build_back_button(user_id))
         return
