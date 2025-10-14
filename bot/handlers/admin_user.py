@@ -19,6 +19,15 @@ router = Router()
 ITEMS_PER_PAGE = 10
 
 
+GIFT_STATUS_MAP = {
+    "AVAILABLE": "📦 В инвентаре",
+    "LOCKED_IN_BET": "🎲 Поставлен",
+    "SOLD": "💸 Продан",
+    "WITHDRAWN": "🚀 Выведен",
+    "PROCESSING": "⏳ В обработке",
+}
+
+
 # ==================================================
 # Универсальные кнопки
 # ==================================================
@@ -215,11 +224,13 @@ async def cb_user_bets(cb: CallbackQuery):
 
     lines = []
     for b in bets:
+        asset = "💰 TON" if b.asset_type == "FIAT" else "🎁 Подарок"
+        final_gift = f"\n┗ 🎁 {b.final_gift_title}" if getattr(b, "final_gift_title", None) else ""
         lines.append(
-            f"🎰 <b>{b.id}</b>\n"
+            f"🎰 <b>#{b.id}</b> ({asset})\n"
             f"┣ 💸 {b.amount_cents / 100:.2f} TON\n"
             f"┣ 🏆 {b.win_cents / 100:.2f} TON\n"
-            f"┗ ⏰ {b.created_at.strftime('%Y-%m-%d %H:%M')}\n"
+            f"┣ ⏰ {b.created_at.strftime('%Y-%m-%d %H:%M')}{final_gift}\n"
         )
 
     await cb.message.edit_text(
@@ -227,6 +238,7 @@ async def cb_user_bets(cb: CallbackQuery):
         parse_mode="HTML",
         reply_markup=build_pagination_keyboard("user_bets", user_id, page, has_next),
     )
+
 
 
 # ==================================================
@@ -250,16 +262,18 @@ async def cb_user_deposits(cb: CallbackQuery):
         await cb.message.edit_text("💰 Нет депозитов.", reply_markup=build_back_button(user_id))
         return
 
-    lines = [
-        f"💵 {d.amount / 100:.2f} TON — {d.created_at.strftime('%Y-%m-%d %H:%M')}"
-        for d in deposits
-    ]
+    lines = []
+    for d in deposits:
+        currency = "💰 TON" if d.currency == "ton" else "🎁 Подарок"
+        date = d.created_at.strftime('%Y-%m-%d %H:%M')
+        lines.append(f"{currency} — {d.amount / 100:.2f} TON — {date}")
 
     await cb.message.edit_text(
-        "<b>💰 ДЕПОЗИТЫ</b>\n\n" + "\n".join(lines),
+        "<b>💰 ПОПОЛНЕНИЯ</b>\n\n" + "\n".join(lines),
         parse_mode="HTML",
         reply_markup=build_pagination_keyboard("user_deposits", user_id, page, has_next),
     )
+
 
 
 # ==================================================
@@ -275,10 +289,18 @@ async def cb_user_gifts(cb: CallbackQuery):
         await cb.message.edit_text("💎 Нет подарков.", reply_markup=build_back_button(user_id))
         return
 
-    lines = [
-        f"🎁 ID {g.id} — {g.price_cents / 100:.2f} TON ({g.status}) — {g.received_at.strftime('%Y-%m-%d %H:%M')}"
-        for g in gifts
-    ]
+    lines = []
+    for g in gifts:
+        status = GIFT_STATUS_MAP.get(g.status, g.status)
+        title = getattr(g, "title", f"Gift #{g.id}")
+        price = (g.price_cents or 0) / 100
+        date = g.received_at.strftime('%Y-%m-%d %H:%M') if g.received_at else "—"
+        lines.append(
+            f"🎁 <b>{title}</b>\n"
+            f"┣ 💰 {price:.2f} TON\n"
+            f"┣ 📦 {status}\n"
+            f"┗ ⏰ {date}\n"
+        )
 
     await cb.message.edit_text(
         "<b>💎 ПОДАРКИ</b>\n\n" + "\n".join(lines),
@@ -317,15 +339,17 @@ async def cb_user_withdraws(cb: CallbackQuery):
     lines = []
 
     for w in ton_withdraws:
-        lines.append(f"🏦 TON — {w.amount / 100:.2f} TON — {w.created_at.strftime('%Y-%m-%d %H:%M')}")
+        lines.append(
+            f"🏦 TON — {w.amount / 100:.2f} TON\n"
+            f"┗ ⏰ {w.created_at.strftime('%Y-%m-%d %H:%M')}"
+        )
 
     for g in gift_withdraws:
-        if g.purchase_price_cents is None:
-            price_str = "❓ unknown TON"
-        else:
-            price_str = f"{g.purchase_price_cents / 100:.2f} TON"
-
-        lines.append(f"🎁 Gift — {price_str} — {g.created_at.strftime('%Y-%m-%d %H:%M')}")
+        price = (g.purchase_price_cents or 0) / 100
+        lines.append(
+            f"🎁 Подарок — {price:.2f} TON\n"
+            f"┗ ⏰ {g.created_at.strftime('%Y-%m-%d %H:%M')}"
+        )
 
     if not lines:
         await cb.message.edit_text("🏦 Нет завершённых выводов.", reply_markup=build_back_button(user_id))
