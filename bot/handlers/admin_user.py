@@ -43,12 +43,12 @@ def build_user_actions_keyboard(user_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton("🎲 Ставки", callback_data=f"user_bets:{user_id}:1"),
-                InlineKeyboardButton("💎 Подарки", callback_data=f"user_gifts:{user_id}:1"),
+                InlineKeyboardButton(text="🎲 Ставки", callback_data=f"user_bets:{user_id}:1"),
+                InlineKeyboardButton(text="💎 Подарки", callback_data=f"user_gifts:{user_id}:1"),
             ],
             [
-                InlineKeyboardButton("💰 Пополнения", callback_data=f"user_deposits:{user_id}:1"),
-                InlineKeyboardButton("🏦 Выводы", callback_data=f"user_withdraws:{user_id}:1"),
+                InlineKeyboardButton(text="💰 Пополнения", callback_data=f"user_deposits:{user_id}:1"),
+                InlineKeyboardButton(text="🏦 Выводы", callback_data=f"user_withdraws:{user_id}:1"),
             ],
         ]
     )
