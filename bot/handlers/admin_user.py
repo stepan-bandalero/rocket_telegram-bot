@@ -266,13 +266,18 @@ async def cb_user_deposits(cb: CallbackQuery):
     for d in deposits:
         currency = "💰 TON" if d.currency == "ton" else "🎁 Подарок"
         date = d.created_at.strftime('%Y-%m-%d %H:%M')
-        lines.append(f"{currency} — {d.amount / 100:.2f} TON — {date}")
+        lines.append(
+            f"{currency}\n"
+            f"┣ 💸 {d.amount / 100:.2f} TON\n"
+            f"┗ ⏰ {date}\n"
+        )
 
     await cb.message.edit_text(
         "<b>💰 ПОПОЛНЕНИЯ</b>\n\n" + "\n".join(lines),
         parse_mode="HTML",
         reply_markup=build_pagination_keyboard("user_deposits", user_id, page, has_next),
     )
+
 
 
 
@@ -292,7 +297,7 @@ async def cb_user_gifts(cb: CallbackQuery):
     lines = []
     for g in gifts:
         status = GIFT_STATUS_MAP.get(g.status, g.status)
-        title = getattr(g, "title", f"Gift #{g.id}")
+        title = g.gift_catalog.title if g.gift_catalog else f"Gift #{g.id}"
         price = (g.price_cents or 0) / 100
         date = g.received_at.strftime('%Y-%m-%d %H:%M') if g.received_at else "—"
         lines.append(
@@ -307,6 +312,7 @@ async def cb_user_gifts(cb: CallbackQuery):
         parse_mode="HTML",
         reply_markup=build_pagination_keyboard("user_gifts", user_id, page, has_next),
     )
+
 
 
 # ==================================================
@@ -340,15 +346,17 @@ async def cb_user_withdraws(cb: CallbackQuery):
 
     for w in ton_withdraws:
         lines.append(
-            f"🏦 TON — {w.amount / 100:.2f} TON\n"
-            f"┗ ⏰ {w.created_at.strftime('%Y-%m-%d %H:%M')}"
+            f"🏦 TON вывод\n"
+            f"┣ 💸 {w.amount / 100:.2f} TON\n"
+            f"┗ ⏰ {w.created_at.strftime('%Y-%m-%d %H:%M')}\n"
         )
 
     for g in gift_withdraws:
         price = (g.purchase_price_cents or 0) / 100
         lines.append(
-            f"🎁 Подарок — {price:.2f} TON\n"
-            f"┗ ⏰ {g.created_at.strftime('%Y-%m-%d %H:%M')}"
+            f"🎁 Gift вывод\n"
+            f"┣ 💰 {price:.2f} TON\n"
+            f"┗ ⏰ {g.created_at.strftime('%Y-%m-%d %H:%M')}\n"
         )
 
     if not lines:
@@ -360,3 +368,4 @@ async def cb_user_withdraws(cb: CallbackQuery):
         parse_mode="HTML",
         reply_markup=build_pagination_keyboard("user_withdraws", user_id, page, has_next),
     )
+
