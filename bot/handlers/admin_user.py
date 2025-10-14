@@ -4,11 +4,11 @@ from aiogram.filters import Command
 from sqlalchemy import select, func
 from bot.db import SessionLocal
 from bot.models.users import User
-from bot.model.bets import Bet
-from bot.model.user_gift import UserGift
-from bot.model.withdraw_request import WithdrawRequest
-from bot.model.gift_withdrawals import GiftWithdrawal
-from bot.model.user_transaction import UserTransaction
+from bot.models.bets import Bet
+from bot.models.user_gift import UserGift
+from bot.models.withdraw_request import WithdrawRequest
+from bot.models.gift_withdrawals import GiftWithdrawal
+from bot.models.user_transaction import UserTransaction
 
 
 from bot.config import settings
