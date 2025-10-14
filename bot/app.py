@@ -10,7 +10,7 @@ from aiogram.client.default import DefaultBotProperties
 
 from .config import settings
 from .middlewares.db import DataBaseSessionMiddleware
-from .handlers import start, admin, admin_promos, admin_channels, admin_broadcast, admin_users, admin_gift, admin_balance, system_stats, business_debug, gift_payout, ton_requests, gift_promos, transactions
+from .handlers import start, admin, admin_promos, admin_channels, admin_broadcast, admin_users, admin_gift, admin_balance, system_stats, business_debug, gift_payout, ton_requests, gift_promos, transactions, admin_user
 
 sys.path.append(str(Path(__file__).resolve().parent))
 
@@ -39,6 +39,7 @@ async def main():
     dp.include_router(admin_channels.router)
     dp.include_router(admin_broadcast.router)
     dp.include_router(admin_users.router)
+    dp.include_router(admin_user.router)
     dp.include_router(gift_promos.router)
     dp.include_router(admin_gift.router)
     dp.include_router(admin_balance.router)
