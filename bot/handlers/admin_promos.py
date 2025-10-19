@@ -118,7 +118,7 @@ from bot.db import SessionLocal
 from bot.middlewares.db import DataBaseSessionMiddleware
 from bot.models.bets import Bet
 from bot.models.gift_withdrawals import GiftWithdrawal
-from bot.models.promo_links import PromoLink, PromoReferral
+from bot.models.promo import PromoLink, PromoReferral
 from bot.models.referral_earnings import ReferralEarning
 from bot.models.user_gift import UserGift
 from bot.models.user_transaction import UserTransaction
