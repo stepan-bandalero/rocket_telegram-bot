@@ -1,114 +1,3 @@
-# from aiogram import Router, F
-# from aiogram.types import Message
-# from sqlalchemy.ext.asyncio import AsyncSession
-#
-# from bot.config import settings
-# from bot.services.promo import PromoService
-# from bot.middlewares.db import DataBaseSessionMiddleware
-#
-# router = Router()
-# router.message.middleware(DataBaseSessionMiddleware())
-#
-# @router.message(F.text.startswith("/add_promo"))
-# async def add_promo(message: Message, session: AsyncSession):
-#     if message.from_user.id not in settings.admins:
-#         return
-#
-#     try:
-#         _, tg_id_str, percent_str = message.text.split(maxsplit=2)
-#         tg_id = int(tg_id_str.strip())
-#         percent = int(percent_str.strip())
-#
-#         if not (0 < percent <= 100):
-#             raise ValueError("invalid percent")
-#
-#     except (ValueError, IndexError):
-#         await message.answer("❌ Используй: <code>/add_promo &lt;telegram_id&gt; &lt;процент&gt;</code>")
-#         return
-#
-#     promo = await PromoService.create_promo(session, tg_id, percent)
-#
-#     promo_url = f"{settings.bot_href}?start={promo.code}"
-#
-#     text = (
-#         "🎉 <b>Реферальная ссылка создана!</b>\n\n"
-#         f"🔗 <b>Ссылка:</b> <code>{promo_url}</code>\n"
-#         f"👤 <b>Админ:</b> <code>{promo.created_by}</code>\n"
-#         f"📈 <b>Процент:</b> <code>{promo.referral_percentage}%</code>"
-#     )
-#
-#     await message.answer(text, disable_web_page_preview=True)
-#
-#
-#
-# @router.message(F.text == "/promos")
-# async def list_promos(message: Message, session: AsyncSession):
-#     if message.from_user.id not in settings.admins:
-#         return
-#
-#     promos = await PromoService.get_promos(session)
-#     if not promos:
-#         await message.answer("📭 Промо-ссылок пока нет.")
-#         return
-#
-#     parts: list[str] = []
-#     header = "📊 <b>Статистика по промо-ссылкам</b>\n\n"
-#     current = header
-#
-#     for promo in promos:
-#         # форматируем числа с разделителями тысяч
-#         referrals = f"{promo['referrals_count']:,}".replace(",", " ")
-#         active = f"{promo['active_users']:,}".replace(",", " ")
-#         deposits = f"{promo['total_deposits_cents'] / 100:,.2f}".replace(",", " ")
-#         withdrawals = f"{promo['total_withdrawals_cents'] / 100:,.2f}".replace(",", " ")
-#
-#         block = (
-#             f"▫️ <b>Админ:</b> <code>{promo['created_by']}</code>\n"
-#             f"🔗 <b>Ссылка:</b> <code>{settings.bot_href}?start={promo['code']}</code>\n"
-#             f"   🔑 Код: <code>{promo['code']}</code>\n"
-#             f"   📈 Процент: <b>{promo['referral_percentage']}%</b>\n"
-#             f"   👥 Переходов: {referrals}\n"
-#             f"   🟢 Активных: {active}\n"
-#             f"   💰 Пополнений: <b>{deposits} TON</b>\n"
-#             f"   💸 Выводов: <b>{withdrawals} TON</b>\n\n"
-#         )
-#
-#         # проверяем лимит телеграма (4096 символов)
-#         if len(current) + len(block) > 4000:
-#             parts.append(current)
-#             current = block
-#         else:
-#             current += block
-#
-#     if current:
-#         parts.append(current)
-#
-#     # отправляем по частям
-#     for part in parts:
-#         await message.answer(part, disable_web_page_preview=True)
-#
-#
-#
-# @router.message(F.text.startswith("/delete_promo"))
-# async def delete_promo(message: Message, session: AsyncSession):
-#     if message.from_user.id not in settings.admins:
-#         return
-#     try:
-#         _, promo_code = message.text.split(maxsplit=1)
-#         promo_code = promo_code.strip()
-#     except ValueError:
-#         # Экранируем спецсимволы HTML или используем Markdown
-#         await message.answer("❌ Используй: <code>/delete_promo &lt;код&gt;</code>", parse_mode="HTML")
-#         return
-#
-#     deleted = await PromoService.delete_promo(session, promo_code)
-#     if deleted:
-#         await message.answer(
-#             f"🗑 Промо с кодом <code>{promo_code}</code> удален.", parse_mode="HTML"
-#         )
-#     else:
-#         await message.answer("⚠ Промо не найден.", parse_mode="HTML")
-
 from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
@@ -143,9 +32,9 @@ def build_promo_pagination_keyboard(section: str, promo_id: int, page: int, has_
     nav = []
 
     if page > 1:
-        nav.append(InlineKeyboardButton(text="⬅", callback_data=f"{section}:{promo_id}:{page - 1}"))
+        nav.append(InlineKeyboardButton(text="⬅ Назад", callback_data=f"{section}:{page - 1}"))
     if has_next:
-        nav.append(InlineKeyboardButton(text="➡", callback_data=f"{section}:{promo_id}:{page + 1}"))
+        nav.append(InlineKeyboardButton(text="Вперед ➡", callback_data=f"{section}:{page + 1}"))
 
     if nav:
         buttons.append(nav)
@@ -174,14 +63,14 @@ def build_promo_actions_keyboard(promo_id: int) -> InlineKeyboardMarkup:
     )
 
 
-def build_promos_list_keyboard(page: int, has_next: bool, promo_id: int = None) -> InlineKeyboardMarkup:
+def build_promos_list_keyboard(page: int, has_prev: bool, has_next: bool, promo_id: int = None) -> InlineKeyboardMarkup:
     buttons = []
     nav = []
 
-    if page > 1:
-        nav.append(InlineKeyboardButton(text="⬅", callback_data=f"promos_list:{page - 1}"))
+    if has_prev:
+        nav.append(InlineKeyboardButton(text="⬅ Назад", callback_data=f"promos_list:{page - 1}"))
     if has_next:
-        nav.append(InlineKeyboardButton(text="➡", callback_data=f"promos_list:{page + 1}"))
+        nav.append(InlineKeyboardButton(text="Вперед ➡", callback_data=f"promos_list:{page + 1}"))
 
     if nav:
         buttons.append(nav)
@@ -347,7 +236,8 @@ def format_promo_stats(stats: dict) -> str:
     )
 
 
-def format_promo_basic_info(promo: PromoLink, referrals_count: int, total_deposits_ton: float) -> str:
+def format_promo_basic_info(promo: PromoLink, referrals_count: int, total_deposits_ton: float, page: int,
+                            total_pages: int) -> str:
     """Форматирование базовой информации о промо-ссылке"""
     promo_url = f"{settings.bot_href}?start={promo.code}"
 
@@ -360,6 +250,8 @@ def format_promo_basic_info(promo: PromoLink, referrals_count: int, total_deposi
         f"👥 <b>Переходов:</b> <b>{referrals_count}</b>\n"
         f"💰 <b>Сумма пополнений:</b> <b>{total_deposits_ton:,.2f} TON</b>\n"
         f"📅 <b>Создана:</b> {promo.created_at.strftime('%d.%m.%Y %H:%M')}\n"
+        f"\n"
+        f"📄 Страница: <b>{page}</b> из <b>{total_pages}</b>"
     )
 
 
@@ -376,27 +268,25 @@ async def cmd_promos(message: Message, session: AsyncSession):
 
 async def show_promos_list(message: Message, session: AsyncSession, page: int):
     """Показать список промо-ссылок с пагинацией (одна ссылка на страницу)"""
-    offset = (page - 1) * ITEMS_PER_PAGE
+    offset = (page - 1)
 
-    # Получаем промо-ссылки с пагинацией
-    promos_stmt = (
+    # Получаем общее количество промо-ссылок
+    total_promos = await session.scalar(select(func.count(PromoLink.id)))
+    total_pages = max(1, (total_promos + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE)
+
+    # Получаем промо-ссылку для текущей страницы (сортировка от новых к старым)
+    promo_stmt = (
         select(PromoLink)
-        .order_by(PromoLink.created_at.desc())
+        .order_by(PromoLink.id.desc())  # Сортируем по ID в порядке убывания (новые сначала)
         .offset(offset)
-        .limit(ITEMS_PER_PAGE + 1)
+        .limit(1)
     )
-    promos_result = await session.execute(promos_stmt)
-    promos = promos_result.scalars().all()
+    promo_result = await session.execute(promo_stmt)
+    promo = promo_result.scalar_one_or_none()
 
-    has_next = len(promos) > ITEMS_PER_PAGE
-    promos = promos[:ITEMS_PER_PAGE]
-
-    if not promos:
+    if not promo:
         await message.answer("📭 Промо-ссылок пока нет.")
         return
-
-    # Показываем только первую промо-ссылку на странице
-    promo = promos[0]
 
     # Базовая статистика для промо-ссылки
     referrals_count = await session.scalar(
@@ -413,17 +303,29 @@ async def show_promos_list(message: Message, session: AsyncSession, page: int):
     )
     total_deposits_ton = total_deposits / 100 if total_deposits else 0
 
-    text = format_promo_basic_info(promo, referrals_count, total_deposits_ton)
+    text = format_promo_basic_info(promo, referrals_count, total_deposits_ton, page, total_pages)
+
+    # Определяем наличие предыдущей и следующей страницы
+    has_prev = page > 1
+    has_next = page < total_pages
 
     # Создаем клавиатуру с пагинацией и кнопкой для детальной информации
-    keyboard = build_promos_list_keyboard(page, has_next, promo.id)
+    keyboard = build_promos_list_keyboard(page, has_prev, has_next, promo.id)
 
-    await message.answer(
-        text,
-        parse_mode="HTML",
-        disable_web_page_preview=True,
-        reply_markup=keyboard
-    )
+    if isinstance(message, CallbackQuery):
+        await message.message.edit_text(
+            text,
+            parse_mode="HTML",
+            disable_web_page_preview=True,
+            reply_markup=keyboard
+        )
+    else:
+        await message.answer(
+            text,
+            parse_mode="HTML",
+            disable_web_page_preview=True,
+            reply_markup=keyboard
+        )
 
 
 # ==================================================
