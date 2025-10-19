@@ -545,7 +545,7 @@ async def cb_promo_referral_earnings(cb: CallbackQuery):
             .order_by(ReferralEarning.created_at.desc())
             .offset(offset)
             .limit(ITEMS_PER_PAGE + 1)
-            .options(selectinload(ReferralEarning.referred_user_id))  # Исправлено: referred_user вместо referred_user_id
+            .options(selectinload(ReferralEarning.referred_user))  # Исправлено: referred_user вместо referred_user_id
         )
         earnings_result = await session.execute(earnings_stmt)
         earnings = earnings_result.scalars().all()
