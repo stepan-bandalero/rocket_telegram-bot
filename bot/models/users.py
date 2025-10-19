@@ -13,17 +13,16 @@ class User(Base):
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     referred_by = Column(BigInteger, ForeignKey("users.telegram_id"), nullable=True)
 
-    created_promos = relationship("PromoLink", backref="creator", foreign_keys="PromoLink.created_by")
 
-
-    # Добавляем отношения
-    referral_earnings_as_referrer = relationship(
-        "ReferralEarning",
-        foreign_keys="ReferralEarning.referrer_id",
-        backref="referrer"
-    )
-    referral_earnings_as_referred = relationship(
-        "ReferralEarning",
-        foreign_keys="ReferralEarning.referred_user_id",
-        backref="referred_user"
-    )
+    #
+    # # Добавляем отношения
+    # referral_earnings_as_referrer = relationship(
+    #     "ReferralEarning",
+    #     foreign_keys="ReferralEarning.referrer_id",
+    #     backref="referrer"
+    # )
+    # referral_earnings_as_referred = relationship(
+    #     "ReferralEarning",
+    #     foreign_keys="ReferralEarning.referred_user_id",
+    #     backref="referred_user"
+    # )
