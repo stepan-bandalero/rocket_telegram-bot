@@ -20,18 +20,18 @@ from sqlalchemy.orm import selectinload
 router = Router()
 router.message.middleware(DataBaseSessionMiddleware())
 
-ITEMS_PER_PAGE = 10
+ITEMS_PER_PAGE = 1  # Одна промо-ссылка на страницу
 
 
 # ==================================================
 # Универсальные кнопки для промо-системы
 # ==================================================
-def build_promo_pagination_keyboard(section: str, promo_id: int, page: int, has_next: bool,
+def build_promo_pagination_keyboard(section: str, promo_id: int, page: int, has_prev: bool, has_next: bool,
                                     extra_buttons=None) -> InlineKeyboardMarkup:
     buttons = []
     nav = []
 
-    if page > 1:
+    if has_prev:
         nav.append(InlineKeyboardButton(text="⬅ Назад", callback_data=f"{section}:{page - 1}"))
     if has_next:
         nav.append(InlineKeyboardButton(text="Вперед ➡", callback_data=f"{section}:{page + 1}"))
@@ -266,26 +266,37 @@ async def cmd_promos(message: Message, session: AsyncSession):
     await show_promos_list(message, session, 1)
 
 
-async def show_promos_list(message: Message, session: AsyncSession, page: int):
+async def show_promos_list(target, session: AsyncSession, page: int):
     """Показать список промо-ссылок с пагинацией (одна ссылка на страницу)"""
-    offset = (page - 1)
-
     # Получаем общее количество промо-ссылок
     total_promos = await session.scalar(select(func.count(PromoLink.id)))
-    total_pages = max(1, (total_promos + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE)
+    total_pages = total_promos  # По одной ссылке на страницу
+
+    if total_promos == 0:
+        if hasattr(target, 'message'):
+            await target.message.edit_text("📭 Промо-ссылок пока нет.")
+        else:
+            await target.answer("📭 Промо-ссылок пока нет.")
+        return
+
+    # Ограничиваем номер страницы в допустимых пределах
+    page = max(1, min(page, total_pages))
 
     # Получаем промо-ссылку для текущей страницы (сортировка от новых к старым)
     promo_stmt = (
         select(PromoLink)
         .order_by(PromoLink.id.desc())  # Сортируем по ID в порядке убывания (новые сначала)
-        .offset(offset)
+        .offset(page - 1)  # Смещение равно номеру страницы минус 1
         .limit(1)
     )
     promo_result = await session.execute(promo_stmt)
     promo = promo_result.scalar_one_or_none()
 
     if not promo:
-        await message.answer("📭 Промо-ссылок пока нет.")
+        if hasattr(target, 'message'):
+            await target.message.edit_text("❌ Промо-ссылка не найдена.")
+        else:
+            await target.answer("❌ Промо-ссылка не найдена.")
         return
 
     # Базовая статистика для промо-ссылки
@@ -312,15 +323,16 @@ async def show_promos_list(message: Message, session: AsyncSession, page: int):
     # Создаем клавиатуру с пагинацией и кнопкой для детальной информации
     keyboard = build_promos_list_keyboard(page, has_prev, has_next, promo.id)
 
-    if isinstance(message, CallbackQuery):
-        await message.message.edit_text(
+    # Редактируем существующее сообщение вместо отправки нового
+    if hasattr(target, 'message'):  # Если это CallbackQuery
+        await target.message.edit_text(
             text,
             parse_mode="HTML",
             disable_web_page_preview=True,
             reply_markup=keyboard
         )
-    else:
-        await message.answer(
+    else:  # Если это Message
+        await target.answer(
             text,
             parse_mode="HTML",
             disable_web_page_preview=True,
@@ -353,14 +365,14 @@ async def cb_promo_info(cb: CallbackQuery):
 
 
 # ==================================================
-# Список промо-ссылок (пагинация)
+# Список промо-ссылок (пагинация) - теперь редактирует существующее сообщение
 # ==================================================
 @router.callback_query(F.data.startswith("promos_list:"))
 async def cb_promos_list(cb: CallbackQuery):
     page = int(cb.data.split(":")[1])
 
     async with SessionLocal() as session:
-        await show_promos_list(cb.message, session, page)
+        await show_promos_list(cb, session, page)
 
     await cb.answer()
 
@@ -394,7 +406,7 @@ async def cb_promo_users(cb: CallbackQuery):
         if not users:
             await cb.message.edit_text(
                 "👥 Нет пользователей по этой промо-ссылке.",
-                reply_markup=build_promo_pagination_keyboard("promo_users", promo_id, page, has_next)
+                reply_markup=build_promo_pagination_keyboard("promo_users", promo_id, page, page > 1, has_next)
             )
             return
 
@@ -471,7 +483,7 @@ async def cb_promo_users(cb: CallbackQuery):
         await cb.message.edit_text(
             text,
             parse_mode="HTML",
-            reply_markup=build_promo_pagination_keyboard("promo_users", promo_id, page, has_next)
+            reply_markup=build_promo_pagination_keyboard("promo_users", promo_id, page, page > 1, has_next)
         )
 
     await cb.answer()
@@ -594,7 +606,7 @@ async def cb_promo_referral_earnings(cb: CallbackQuery):
         await cb.message.edit_text(
             text,
             parse_mode="HTML",
-            reply_markup=build_promo_pagination_keyboard("promo_referral_earnings", promo_id, page, has_next)
+            reply_markup=build_promo_pagination_keyboard("promo_referral_earnings", promo_id, page, page > 1, has_next)
         )
 
     await cb.answer()
