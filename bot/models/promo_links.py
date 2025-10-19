@@ -5,6 +5,7 @@ from bot.db import Base
 
 class PromoLink(Base):
     __tablename__ = "promo_links"
+    __table_args__ = {'extend_existing': True}  # Добавляем эту строку
 
     id = Column(Integer, primary_key=True)
     code = Column(Text, unique=True, nullable=False)
@@ -18,6 +19,7 @@ class PromoLink(Base):
 
 class PromoReferral(Base):
     __tablename__ = "promo_referrals"
+    __table_args__ = {'extend_existing': True}  # Добавляем эту строку
 
     id = Column(Integer, primary_key=True)
     promo_id = Column(Integer, ForeignKey("promo_links.id", ondelete="CASCADE"), nullable=False)

@@ -3,6 +3,7 @@ from bot.db import Base
 
 class ReferralEarning(Base):
     __tablename__ = "referral_earnings"
+    __table_args__ = {'extend_existing': True}  # Добавляем эту строку
 
     id = Column(Integer, primary_key=True)
     referrer_id = Column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False)
