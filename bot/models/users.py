@@ -1,6 +1,6 @@
 from sqlalchemy import Column, BigInteger, Text, TIMESTAMP, func, ForeignKey
 from bot.db import Base
-
+from sqlalchemy.orm import relationship
 
 class User(Base):
     __tablename__ = "users"
