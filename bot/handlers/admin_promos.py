@@ -109,7 +109,6 @@
 #     else:
 #         await message.answer("⚠ Промо не найден.", parse_mode="HTML")
 
-
 from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
@@ -175,7 +174,7 @@ def build_promo_actions_keyboard(promo_id: int) -> InlineKeyboardMarkup:
     )
 
 
-def build_promos_list_keyboard(page: int, has_next: bool) -> InlineKeyboardMarkup:
+def build_promos_list_keyboard(page: int, has_next: bool, promo_id: int = None) -> InlineKeyboardMarkup:
     buttons = []
     nav = []
 
@@ -186,6 +185,10 @@ def build_promos_list_keyboard(page: int, has_next: bool) -> InlineKeyboardMarku
 
     if nav:
         buttons.append(nav)
+
+    # Добавляем кнопку для детального просмотра, если указан promo_id
+    if promo_id:
+        buttons.append([InlineKeyboardButton(text="📊 Детальная статистика", callback_data=f"promo_info:{promo_id}")])
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -217,10 +220,17 @@ async def get_promo_stats(session: AsyncSession, promo_id: int):
         )
     )
 
+    # Инициализируем статистику с нулевыми значениями
     stats = {
         "promo": promo,
         "referral_count": len(referral_user_ids),
         "actual_earnings": actual_earnings or 0,
+        "deposits_ton": 0,
+        "deposits_gift": 0,
+        "gift_deposits_count": 0,
+        "ton_withdrawals": 0,
+        "gift_withdrawals": 0,
+        "active_users": 0,
     }
 
     if not referral_user_ids:
@@ -337,8 +347,24 @@ def format_promo_stats(stats: dict) -> str:
     )
 
 
+def format_promo_basic_info(promo: PromoLink, referrals_count: int, total_deposits_ton: float) -> str:
+    """Форматирование базовой информации о промо-ссылке"""
+    promo_url = f"{settings.bot_href}?start={promo.code}"
+
+    return (
+        f"🎫 <b>ПРОМО-ССЫЛКА #{promo.id}</b>\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"🔗 <b>Ссылка:</b> <code>{promo_url}</code>\n"
+        f"👤 <b>Создал:</b> <code>{promo.created_by}</code>\n"
+        f"📈 <b>Процент:</b> <b>{promo.referral_percentage}%</b>\n"
+        f"👥 <b>Переходов:</b> <b>{referrals_count}</b>\n"
+        f"💰 <b>Сумма пополнений:</b> <b>{total_deposits_ton:,.2f} TON</b>\n"
+        f"📅 <b>Создана:</b> {promo.created_at.strftime('%d.%m.%Y %H:%M')}\n"
+    )
+
+
 # ==================================================
-# Команда /promos с пагинацией
+# Команда /promos с пагинацией (по одной ссылке на страницу)
 # ==================================================
 @router.message(Command("promos"))
 async def cmd_promos(message: Message, session: AsyncSession):
@@ -349,13 +375,12 @@ async def cmd_promos(message: Message, session: AsyncSession):
 
 
 async def show_promos_list(message: Message, session: AsyncSession, page: int):
-    """Показать список промо-ссылок с пагинацией"""
+    """Показать список промо-ссылок с пагинацией (одна ссылка на страницу)"""
     offset = (page - 1) * ITEMS_PER_PAGE
 
-    # Получаем промо-ссылки с пагинацией и загрузкой рефералов
+    # Получаем промо-ссылки с пагинацией
     promos_stmt = (
         select(PromoLink)
-        .options(selectinload(PromoLink.referrals))
         .order_by(PromoLink.created_at.desc())
         .offset(offset)
         .limit(ITEMS_PER_PAGE + 1)
@@ -370,48 +395,34 @@ async def show_promos_list(message: Message, session: AsyncSession, page: int):
         await message.answer("📭 Промо-ссылок пока нет.")
         return
 
-    text = "📊 <b>СПИСОК ПРОМО-ССЫЛОК</b>\n\n"
+    # Показываем только первую промо-ссылку на странице
+    promo = promos[0]
 
-    for promo in promos:
-        # Статистика для каждой промо-ссылки
-        total_deposits = await session.scalar(
-            select(func.coalesce(func.sum(UserTransaction.amount), 0))
-            .join(PromoReferral, UserTransaction.user_id == PromoReferral.user_id)
-            .where(
-                (PromoReferral.promo_id == promo.id) &
-                (UserTransaction.type == "deposit")
-            )
+    # Базовая статистика для промо-ссылки
+    referrals_count = await session.scalar(
+        select(func.count(PromoReferral.id)).where(PromoReferral.promo_id == promo.id)
+    )
+
+    total_deposits = await session.scalar(
+        select(func.coalesce(func.sum(UserTransaction.amount), 0))
+        .join(PromoReferral, UserTransaction.user_id == PromoReferral.user_id)
+        .where(
+            (PromoReferral.promo_id == promo.id) &
+            (UserTransaction.type == "deposit")
         )
+    )
+    total_deposits_ton = total_deposits / 100 if total_deposits else 0
 
-        total_deposits_ton = total_deposits / 100 if total_deposits else 0
+    text = format_promo_basic_info(promo, referrals_count, total_deposits_ton)
 
-        text += (
-            f"🎫 <b>Промо #{promo.id}</b>\n"
-            f"┣ 👤 Создал: <code>{promo.created_by}</code>\n"
-            f"┣ 🔗 Код: <code>{promo.code}</code>\n"
-            f"┣ 📈 Процент: <b>{promo.referral_percentage}%</b>\n"
-            f"┣ 👥 Переходов: <b>{len(promo.referrals)}</b>\n"
-            f"┣ 💰 Сумма пополнений: <b>{total_deposits_ton:,.2f} TON</b>\n"
-            f"┗ 📅 Создана: {promo.created_at.strftime('%d.%m.%Y %H:%M')}\n\n"
-            f"<i>Для детальной статистики нажмите на кнопку ниже ↓</i>\n\n"
-        )
+    # Создаем клавиатуру с пагинацией и кнопкой для детальной информации
+    keyboard = build_promos_list_keyboard(page, has_next, promo.id)
 
     await message.answer(
         text,
         parse_mode="HTML",
         disable_web_page_preview=True,
-        reply_markup=InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text="📊 Подробнее",
-                        callback_data=f"promo_info:{promo.id}"
-                    ) for promo in promos
-                ],
-                build_promos_list_keyboard(page, has_next).inline_keyboard[0] if build_promos_list_keyboard(page,
-                                                                                                            has_next).inline_keyboard else []
-            ]
-        )
+        reply_markup=keyboard
     )
 
 
@@ -539,10 +550,10 @@ async def cb_promo_users(cb: CallbackQuery):
 
             username = f"@{user.username}" if user.username else "—"
             balance_ton = (user.ton_balance or 0) / 100
-            deposits_ton_ton = deposits_ton / 100
-            deposits_gift_ton = deposits_gift / 100
-            ton_withdrawals_ton = ton_withdrawals / 100
-            gift_withdrawals_ton = gift_withdrawals / 100
+            deposits_ton_ton = deposits_ton / 100 if deposits_ton else 0
+            deposits_gift_ton = deposits_gift / 100 if deposits_gift else 0
+            ton_withdrawals_ton = ton_withdrawals / 100 if ton_withdrawals else 0
+            gift_withdrawals_ton = gift_withdrawals / 100 if gift_withdrawals else 0
 
             text += (
                 f"👤 <b>{username}</b> (<code>{user.telegram_id}</code>)\n"
@@ -566,9 +577,6 @@ async def cb_promo_users(cb: CallbackQuery):
 
 # ==================================================
 # Реферальные отчисления
-# ==================================================
-# ==================================================
-# Реферальные отчисления (обновленная версия)
 # ==================================================
 @router.callback_query(F.data.startswith("promo_referral_earnings:"))
 async def cb_promo_referral_earnings(cb: CallbackQuery):
@@ -631,9 +639,9 @@ async def cb_promo_referral_earnings(cb: CallbackQuery):
             )
         )
 
-        total_earnings_ton = total_earnings / 100
-        gift_earnings_ton = gift_earnings / 100
-        ton_earnings_ton = ton_earnings / 100
+        total_earnings_ton = total_earnings / 100 if total_earnings else 0
+        gift_earnings_ton = gift_earnings / 100 if gift_earnings else 0
+        ton_earnings_ton = ton_earnings / 100 if ton_earnings else 0
 
         if not earnings:
             text = (
