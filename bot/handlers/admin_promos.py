@@ -193,13 +193,14 @@ def format_promo_stats(stats: dict) -> str:
     promo = stats["promo"]
     promo_url = f"{settings.bot_href}?start={promo.code}"
 
-    deposits_ton_ton = stats["deposits_ton"] / 100
-    deposits_gift_ton = stats["deposits_gift"] / 100
+    # Преобразуем все к float для совместимости
+    deposits_ton_ton = float(stats["deposits_ton"] / 100)
+    deposits_gift_ton = float(stats["deposits_gift"] / 100)
     total_deposits_ton = deposits_ton_ton + deposits_gift_ton
-    ton_withdrawals_ton = stats["ton_withdrawals"] / 100
-    gift_withdrawals_ton = stats["gift_withdrawals"] / 100
+    ton_withdrawals_ton = float(stats["ton_withdrawals"] / 100)
+    gift_withdrawals_ton = float(stats["gift_withdrawals"] / 100)
     total_withdrawals_ton = ton_withdrawals_ton + gift_withdrawals_ton
-    actual_earnings_ton = stats["actual_earnings"] / 100
+    actual_earnings_ton = float(stats["actual_earnings"] / 100)
 
     # Расчетные отчисления (на основе процента от депозитов)
     calculated_earnings = total_deposits_ton * (promo.referral_percentage / 100)
