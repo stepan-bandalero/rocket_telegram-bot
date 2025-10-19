@@ -32,9 +32,9 @@ def build_promo_pagination_keyboard(section: str, promo_id: int, page: int, has_
     nav = []
 
     if has_prev:
-        nav.append(InlineKeyboardButton(text="⬅ Назад", callback_data=f"{section}:{page - 1}"))
+        nav.append(InlineKeyboardButton(text="⬅ Назад", callback_data=f"{section}:{promo_id}:{page - 1}"))
     if has_next:
-        nav.append(InlineKeyboardButton(text="Вперед ➡", callback_data=f"{section}:{page + 1}"))
+        nav.append(InlineKeyboardButton(text="Вперед ➡", callback_data=f"{section}:{promo_id}:{page + 1}"))
 
     if nav:
         buttons.append(nav)
@@ -383,8 +383,22 @@ async def cb_promos_list(cb: CallbackQuery):
 # ==================================================
 @router.callback_query(F.data.startswith("promo_users:"))
 async def cb_promo_users(cb: CallbackQuery):
-    _, promo_id, page = cb.data.split(":")
-    promo_id, page = int(promo_id), int(page)
+    parts = cb.data.split(":")
+
+    # Обрабатываем оба случая: с promo_id и без (пагинация)
+    if len(parts) == 3:
+        # Первый вызов: promo_users:promo_id:page
+        _, promo_id, page = parts
+        promo_id, page = int(promo_id), int(page)
+    elif len(parts) == 2:
+        # Пагинация: promo_users:page (используем promo_id из текущего состояния)
+        # Нужно получить promo_id из текущего сообщения или сохранить в состоянии
+        # Временно используем заглушку - нужно будет доработать
+        await cb.answer("❌ Ошибка пагинации. Вернитесь к промо-ссылке.")
+        return
+    else:
+        await cb.answer("❌ Неверный формат данных.")
+        return
 
     offset = (page - 1) * ITEMS_PER_PAGE
 
@@ -411,7 +425,7 @@ async def cb_promo_users(cb: CallbackQuery):
             )
             return
 
-        text = f"👥 <b>ПОЛЬЗОВАТЕЛИ ПО ПРОМО-ССЫЛКЕ</b>\n\n"
+        text = f"👥 <b>ПОЛЬЗОВАТЕЛИ ПО ПРОМО-ССЫЛКЕ #{promo_id}</b>\n\n"
 
         for user in users:
             # Получаем дату регистрации по промо-ссылке
@@ -465,10 +479,10 @@ async def cb_promo_users(cb: CallbackQuery):
 
             username = f"@{user.username}" if user.username else "—"
             balance_ton = (user.ton_balance or 0) / 100
-            deposits_ton_ton = deposits_ton / 100 if deposits_ton else 0
-            deposits_gift_ton = deposits_gift / 100 if deposits_gift else 0
-            ton_withdrawals_ton = ton_withdrawals / 100 if ton_withdrawals else 0
-            gift_withdrawals_ton = gift_withdrawals / 100 if gift_withdrawals else 0
+            deposits_ton_ton = float(deposits_ton or 0) / 100
+            deposits_gift_ton = float(deposits_gift or 0) / 100
+            ton_withdrawals_ton = float(ton_withdrawals or 0) / 100
+            gift_withdrawals_ton = float(gift_withdrawals or 0) / 100
 
             text += (
                 f"👤 <b>{username}</b> (<code>{user.telegram_id}</code>)\n"
@@ -495,8 +509,22 @@ async def cb_promo_users(cb: CallbackQuery):
 # ==================================================
 @router.callback_query(F.data.startswith("promo_referral_earnings:"))
 async def cb_promo_referral_earnings(cb: CallbackQuery):
-    _, promo_id, page = cb.data.split(":")
-    promo_id, page = int(promo_id), int(page)
+    parts = cb.data.split(":")
+
+    # Обрабатываем оба случая: с promo_id и без (пагинация)
+    if len(parts) == 3:
+        # Первый вызов: promo_referral_earnings:promo_id:page
+        _, promo_id, page = parts
+        promo_id, page = int(promo_id), int(page)
+    elif len(parts) == 2:
+        # Пагинация: promo_referral_earnings:page (используем promo_id из текущего состояния)
+        # Нужно получить promo_id из текущего сообщения или сохранить в состоянии
+        # Временно используем заглушку - нужно будет доработать
+        await cb.answer("❌ Ошибка пагинации. Вернитесь к промо-ссылке.")
+        return
+    else:
+        await cb.answer("❌ Неверный формат данных.")
+        return
 
     offset = (page - 1) * ITEMS_PER_PAGE
 
@@ -517,7 +545,7 @@ async def cb_promo_referral_earnings(cb: CallbackQuery):
             .order_by(ReferralEarning.created_at.desc())
             .offset(offset)
             .limit(ITEMS_PER_PAGE + 1)
-            .options(selectinload(ReferralEarning.referred_user))
+            .options(selectinload(ReferralEarning.referred_user_id))  # Исправлено: referred_user вместо referred_user_id
         )
         earnings_result = await session.execute(earnings_stmt)
         earnings = earnings_result.scalars().all()
@@ -554,9 +582,9 @@ async def cb_promo_referral_earnings(cb: CallbackQuery):
             )
         )
 
-        total_earnings_ton = total_earnings / 100 if total_earnings else 0
-        gift_earnings_ton = gift_earnings / 100 if gift_earnings else 0
-        ton_earnings_ton = ton_earnings / 100 if ton_earnings else 0
+        total_earnings_ton = float(total_earnings or 0) / 100
+        gift_earnings_ton = float(gift_earnings or 0) / 100
+        ton_earnings_ton = float(ton_earnings or 0) / 100
 
         if not earnings:
             text = (
@@ -592,7 +620,7 @@ async def cb_promo_referral_earnings(cb: CallbackQuery):
             )
 
             for earning in earnings:
-                amount_ton = earning.amount / 100
+                amount_ton = float(earning.amount) / 100
                 source_emoji = "🎁" if earning.source_type == "gift_deposit" else "💰"
                 source_text = "подарок" if earning.source_type == "gift_deposit" else "TON"
 
