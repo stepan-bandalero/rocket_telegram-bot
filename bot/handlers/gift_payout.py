@@ -1,4 +1,5 @@
-from aiogram import F, Router, html
+from aiogram import F, Router
+import html
 from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
