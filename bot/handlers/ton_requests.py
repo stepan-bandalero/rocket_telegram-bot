@@ -3,6 +3,7 @@ from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, C
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
+import html
 
 from bot.config import settings
 from bot.db import SessionLocal
@@ -99,7 +100,7 @@ def format_withdrawal_message(withdrawal_data: dict, recent_bets: list, page: in
 
     created_at = withdrawal.created_at.strftime("%d.%m.%Y %H:%M") if withdrawal.created_at else "—"
     amount = f"{withdrawal.amount / 100:.2f} TON"
-    username = f"@<code>{user.username}</code>" if user.username else "—"
+    username = f"@{html.escape(user.username)}" if user.username else "—"
     user_balance = f"{user.ton_balance / 100:.2f} TON" if user.ton_balance else "0.00 TON"
 
     message_parts = [
@@ -121,7 +122,7 @@ def format_withdrawal_message(withdrawal_data: dict, recent_bets: list, page: in
     message_parts.extend([
         f"\n👤 <b>ИНФОРМАЦИЯ О ПОЛЬЗОВАТЕЛЕ</b>\n",
         f"┣ ID: <code>{user.telegram_id}</code>\n",
-        f"┣ Имя: {user.first_name or '—'}\n",
+        f"┣ Имя: {html.escape(user.first_name) if user.first_name else '—'}\n",
         f"┣ Username: {username}\n",
         f"┗ Баланс: <b>{user_balance}</b>\n",
     ])
