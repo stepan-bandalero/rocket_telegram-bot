@@ -1,4 +1,4 @@
-from aiogram import F, Router
+from aiogram import F, Router, html
 from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -130,7 +130,7 @@ def format_withdrawal_message(withdrawal_data: dict, recent_bets: list, page: in
     gift_price = f"{user_gift.price_cents / 100:.2f}" if user_gift.price_cents else "0.00"
 
     # Информация о пользователе
-    username = f"@<code>{user.username}</code>" if user.username else "—"
+    username = f"@{html.escape(user.username)}" if user.username else "—"
     user_balance = f"{user.ton_balance / 100:.2f} TON" if user.ton_balance else "0.00 TON"
 
     # Информация о заявке
@@ -150,7 +150,7 @@ def format_withdrawal_message(withdrawal_data: dict, recent_bets: list, page: in
     message_parts.extend([
         f"\n👤 <b>ИНФОРМАЦИЯ О ПОЛЬЗОВАТЕЛЕ</b>\n",
         f"┣ ID: <code>{user.telegram_id}</code>\n",
-        f"┣ Имя: <b>{user.first_name or '—'}</b>\n",
+        f"┣ Имя: <b>{html.escape(user.first_name) if user.first_name else '—'}</b>\n",
         f"┣ Username: {username}\n",
         f"┗ Баланс: <b>{user_balance}</b>\n",
     ])

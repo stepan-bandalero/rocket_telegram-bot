@@ -39,7 +39,7 @@ async def cmd_start(message: Message, bot: Bot, session: AsyncSession):
             telegram_id=message.from_user.id,
             username=message.from_user.username,
             first_name=message.from_user.first_name,
-            ton_balance=10
+            ton_balance=0
         )
         session.add(user)
         await session.flush()
