@@ -14,6 +14,8 @@ class User(Base):
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     referred_by = Column(BigInteger, ForeignKey("users.telegram_id"), nullable=True)
 
+    invoices = relationship("StarsInvoice", back_populates="user")
+
 
     #
     # # Добавляем отношения

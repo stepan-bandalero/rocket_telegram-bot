@@ -12,7 +12,7 @@ class StarsInvoice(Base):
     payload = Column(Text, unique=True, nullable=False)
 
     # Telegram ID пользователя
-    telegram_id = Column(BigInteger, nullable=False)
+    telegram_id = Column(BigInteger, ForeignKey("users.telegram_id"), nullable=False)
 
     # Количество звёзд
     amount = Column(BigInteger, nullable=False)
