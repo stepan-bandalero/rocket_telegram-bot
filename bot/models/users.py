@@ -10,6 +10,7 @@ class User(Base):
     first_name = Column(Text, nullable=True)
     photo_url = Column(Text, nullable=True)
     ton_balance = Column(BigInteger)
+    stars_balance = Column(BigInteger, default=0)  # <-- новое поле
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     referred_by = Column(BigInteger, ForeignKey("users.telegram_id"), nullable=True)
 
