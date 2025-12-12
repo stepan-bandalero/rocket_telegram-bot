@@ -27,11 +27,13 @@ async def create_invoice(message: Message):
     amount = int(parts[1])
     telegram_id = message.from_user.id
     payload = f"{telegram_id}-{amount}-{int(time.time() * 1000)}"  # уникальный payload
+    print(f"Создаём invoice: payload={payload}, amount={amount}")
 
     async with SessionLocal() as session:
         invoice = StarsInvoice(payload=payload, telegram_id=telegram_id, amount=amount, status="pending")
         session.add(invoice)
         await session.commit()
+        print(f"Invoice сохранён в БД: {invoice}")
 
     prices = [LabeledPrice(label=f"{amount} ⭐", amount=amount)]  # Telegram требует целое число
     start_parameter = f"stars-{payload}"
@@ -46,11 +48,14 @@ async def create_invoice(message: Message):
         prices=prices,
         start_parameter=start_parameter
     )
+    print(f"Invoice отправлен пользователю {telegram_id}")
 
 
 
 @router.pre_checkout_query()
 async def handle_pre_checkout(pre_checkout: PreCheckoutQuery):
+    print(f"PreCheckout получен: payload={pre_checkout.invoice_payload}")
+
     """Обработка pre_checkout"""
     async with SessionLocal() as session:
         stmt = select(StarsInvoice).where(StarsInvoice.payload == pre_checkout.invoice_payload)
@@ -58,10 +63,14 @@ async def handle_pre_checkout(pre_checkout: PreCheckoutQuery):
         invoice = result.scalar_one_or_none()
 
         if not invoice or invoice.status != "pending":
+            print(f"Invoice не найден или не pending: {pre_checkout.invoice_payload}")
+
             await pre_checkout.answer(ok=False, error_message="Invoice не найден или уже обработан")
             return
 
         await pre_checkout.answer(ok=True)
+        print(f"PreCheckout успешно подтверждён для payload={pre_checkout.invoice_payload}")
+
 
 
 @router.message(F.successful_payment())
@@ -69,6 +78,8 @@ async def handle_successful_payment(message: Message):
     """Telegram подтвердил оплату Stars"""
     payload = message.successful_payment.invoice_payload
     telegram_id = message.from_user.id
+    print(f"Successful payment: payload={payload}, user={telegram_id}")
+
 
     async with SessionLocal() as session:
         stmt = select(StarsInvoice).where(StarsInvoice.payload == payload)
@@ -76,6 +87,7 @@ async def handle_successful_payment(message: Message):
         invoice = result.scalar_one_or_none()
 
         if not invoice or invoice.status != "pending":
+            print(f"Invoice уже обработан или не найден: {payload}")
             return  # Уже обработан или нет записи
 
         # Начисляем звезды пользователю
@@ -84,6 +96,7 @@ async def handle_successful_payment(message: Message):
         user = user_result.scalar_one_or_none()
 
         if not user:
+            print(f"Пользователь не найден: {telegram_id}")
             return  # Пользователь не найден
 
         # Начисляем
@@ -91,5 +104,6 @@ async def handle_successful_payment(message: Message):
         invoice.status = "paid"
         invoice.processed_at = func.now()
         await session.commit()
+        print(f"Начислено {invoice.amount} ⭐ пользователю {telegram_id}")
 
     await message.answer(f"✅ Оплата успешна! Вам начислено {invoice.amount} ⭐")
