@@ -57,19 +57,19 @@ async def handle_pre_checkout(pre_checkout: PreCheckoutQuery):
     print(f"PreCheckout получен: payload={pre_checkout.invoice_payload}")
 
     """Обработка pre_checkout"""
-    async with SessionLocal() as session:
-        stmt = select(StarsInvoice).where(StarsInvoice.payload == pre_checkout.invoice_payload)
-        result = await session.execute(stmt)
-        invoice = result.scalar_one_or_none()
+    # async with SessionLocal() as session:
+    #     stmt = select(StarsInvoice).where(StarsInvoice.payload == pre_checkout.invoice_payload)
+    #     result = await session.execute(stmt)
+    #     invoice = result.scalar_one_or_none()
 
-        if not invoice or invoice.status != "pending":
-            print(f"Invoice не найден или не pending: {pre_checkout.invoice_payload}")
+        # if not invoice or invoice.status != "pending":
+        #     print(f"Invoice не найден или не pending: {pre_checkout.invoice_payload}")
+        #
+        #     await pre_checkout.answer(ok=False, error_message="Invoice не найден или уже обработан")
+        #     return
 
-            await pre_checkout.answer(ok=False, error_message="Invoice не найден или уже обработан")
-            return
-
-        await pre_checkout.answer(ok=True)
-        print(f"PreCheckout успешно подтверждён для payload={pre_checkout.invoice_payload}")
+    await pre_checkout.answer(ok=True)
+    print(f"PreCheckout успешно подтверждён для payload={pre_checkout.invoice_payload}")
 
 
 
@@ -82,13 +82,13 @@ async def handle_successful_payment(message: Message):
 
 
     async with SessionLocal() as session:
-        stmt = select(StarsInvoice).where(StarsInvoice.payload == payload)
-        result = await session.execute(stmt)
-        invoice = result.scalar_one_or_none()
-
-        if not invoice or invoice.status != "pending":
-            print(f"Invoice уже обработан или не найден: {payload}")
-            return  # Уже обработан или нет записи
+        # stmt = select(StarsInvoice).where(StarsInvoice.payload == payload)
+        # result = await session.execute(stmt)
+        # invoice = result.scalar_one_or_none()
+        #
+        # if not invoice or invoice.status != "pending":
+        #     print(f"Invoice уже обработан или не найден: {payload}")
+        #     return  # Уже обработан или нет записи
 
         # Начисляем звезды пользователю
         user_stmt = select(User).where(User.telegram_id == telegram_id)
