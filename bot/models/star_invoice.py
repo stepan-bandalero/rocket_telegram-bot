@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, Text, TIMESTAMP, func
+from sqlalchemy import Column, BigInteger, Text, TIMESTAMP, func, ForeignKey
 from sqlalchemy.orm import relationship
 from bot.db import Base
 
