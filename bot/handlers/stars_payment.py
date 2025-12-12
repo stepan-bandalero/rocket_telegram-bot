@@ -13,6 +13,7 @@ import time
 router = Router()
 
 
+
 @router.message(F.text.startswith("/pay_stars"))
 async def create_invoice(message: Message):
     if message.from_user.id not in settings.admins:
@@ -28,14 +29,24 @@ async def create_invoice(message: Message):
     payload = f"{telegram_id}-{amount}-{int(time.time() * 1000)}"  # уникальный payload
 
     async with SessionLocal() as session:
-        # Создаем запись о pending платеже
         invoice = StarsInvoice(payload=payload, telegram_id=telegram_id, amount=amount, status="pending")
         session.add(invoice)
         await session.commit()
 
-    # Формируем ссылку на оплату через Telegram (Stars)
-    payment_url = f"https://t.me/pay?invoice={payload}"
-    await message.reply(f"✅ Для оплаты нажмите: {payment_url}")
+    prices = [LabeledPrice(label=f"{amount} ⭐", amount=amount * 100)]  # Telegram требует целое число
+    start_parameter = f"stars-{payload}"
+
+    # Отправка invoice через Telegram
+    await message.bot.send_invoice(
+        chat_id=telegram_id,
+        title="Пополнение Stars",
+        description=f"Начисление {amount} ⭐ на баланс",
+        payload=payload,
+        currency="XPR",  # обязательно внутренняя валюта
+        prices=prices,
+        start_parameter=start_parameter
+    )
+
 
 
 @router.pre_checkout_query()
