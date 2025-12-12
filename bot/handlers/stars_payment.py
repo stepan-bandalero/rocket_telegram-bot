@@ -42,7 +42,7 @@ async def create_invoice(message: Message):
         title="Пополнение Stars",
         description=f"Начисление {amount} ⭐ на баланс",
         payload=payload,
-        currency="XPR",  # обязательно внутренняя валюта
+        currency="XTR",  # обязательно внутренняя валюта
         prices=prices,
         start_parameter=start_parameter
     )
