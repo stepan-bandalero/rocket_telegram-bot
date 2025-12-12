@@ -73,7 +73,7 @@ async def handle_pre_checkout(pre_checkout: PreCheckoutQuery):
 
 
 
-@router.message(F.successful_payment())
+@router.message(F.successful_payment)
 async def handle_successful_payment(message: Message):
     """Telegram подтвердил оплату Stars"""
     payload = message.successful_payment.invoice_payload
