@@ -33,7 +33,7 @@ async def create_invoice(message: Message):
         session.add(invoice)
         await session.commit()
 
-    prices = [LabeledPrice(label=f"{amount} ⭐", amount=amount * 100)]  # Telegram требует целое число
+    prices = [LabeledPrice(label=f"{amount} ⭐", amount=amount)]  # Telegram требует целое число
     start_parameter = f"stars-{payload}"
 
     # Отправка invoice через Telegram
