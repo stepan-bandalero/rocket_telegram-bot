@@ -15,17 +15,3 @@ class User(Base):
     referred_by = Column(BigInteger, ForeignKey("users.telegram_id"), nullable=True)
 
     invoices = relationship("StarsInvoice", back_populates="user")
-
-
-    #
-    # # Добавляем отношения
-    # referral_earnings_as_referrer = relationship(
-    #     "ReferralEarning",
-    #     foreign_keys="ReferralEarning.referrer_id",
-    #     backref="referrer"
-    # )
-    # referral_earnings_as_referred = relationship(
-    #     "ReferralEarning",
-    #     foreign_keys="ReferralEarning.referred_user_id",
-    #     backref="referred_user"
-    # )

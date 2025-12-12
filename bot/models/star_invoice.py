@@ -23,6 +23,3 @@ class StarsInvoice(Base):
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
 
     processed_at = Column(TIMESTAMP(timezone=True), nullable=True)
-
-    # Связь с пользователем
-    user = relationship("User", primaryjoin="StarsInvoice.telegram_id==User.telegram_id", backref="stars_invoices")
