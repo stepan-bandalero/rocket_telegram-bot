@@ -14,7 +14,7 @@ keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(
             text="▶️ Запустить",
-            web_app=WebAppInfo(url="https://rocket-app.top")
+            web_app=WebAppInfo(url="https://rocket-app.link")
         )],        # Вторая строка - две кнопки
         [
             InlineKeyboardButton(text="📗 Обучение", url="https://rutube.ru/video/11817ec12a2cec48aba4089e46668083/?r=wd"),
