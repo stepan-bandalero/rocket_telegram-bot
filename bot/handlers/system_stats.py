@@ -22,7 +22,7 @@ async def get_system_stats():
     """Получение статистики системы с game сервера"""
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get("https://rocket-app.top/api/system-stats", timeout=10) as response:
+            async with session.get("https://rocket-app.link/api/system-stats", timeout=10) as response:
                 if response.status == 200:
                     return await response.json()
                 else:
@@ -36,7 +36,7 @@ async def get_online_users():
     """Получение количества онлайн пользователей"""
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get("https://rocket-app.top/api/online-users-count", timeout=5) as response:
+            async with session.get("https://rocket-app.link/api/online-users-count", timeout=5) as response:
                 if response.status == 200:
                     data = await response.json()
                     return data.get("online_users", "N/A")
@@ -49,7 +49,7 @@ async def get_detailed_online_users():
     """Получение детальной информации об онлайн пользователях"""
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get("https://rocket-app.top/api/online-users", timeout=5) as response:
+            async with session.get("https://rocket-app.link/api/online-users", timeout=5) as response:
                 if response.status == 200:
                     return await response.json()
     except Exception as e:
@@ -168,7 +168,7 @@ async def get_response_time():
     try:
         start_time = time.time()
         async with aiohttp.ClientSession() as session:
-            async with session.get("https://rocket-app.top/api/health", timeout=5) as response:
+            async with session.get("https://rocket-app.link/api/health", timeout=5) as response:
                 if response.status == 200:
                     return (time.time() - start_time) * 1000  # в миллисекундах
     except:
