@@ -109,7 +109,7 @@ async def get_biggest_win_24h(session):
 async def get_online_users():
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get("https://rocket-app.top/api/online-users-count") as response:
+            async with session.get("https://rocket-app.link/api/online-users-count") as response:
                 if response.status == 200:
                     data = await response.json()
                     return data.get("online_users", "N/A")
