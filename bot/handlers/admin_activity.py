@@ -56,6 +56,8 @@ CASES_DATA = {
     "case-20": {"name": "Cap", "cost_type": "stars", "cost_value": 2500},
     "case-10": {"name": "VIP", "cost_type": "ton", "cost_value": 90},
     "case-21": {"name": "VIP", "cost_type": "stars", "cost_value": 9000},
+    "case-35": {"name": "Peach", "cost_type": "ton", "cost_value": 1},
+    "case-36": {"name": "Peach", "cost_type": "stars", "cost_value": 100},
 }
 
 # Словарь для преобразования режимов плинко
@@ -375,8 +377,7 @@ def format_activity_item(index: int, item, activity_type: str) -> str:
         return (
             f"<b>#{index}</b> ⭐ <b>Пополнение</b> {status_icon}\n"
             f"┣ 💫 <b>Звезд:</b> {invoice.amount}\n"
-            f"┣ 📋 <b>ID:</b> <code>{invoice.id}</code>{processed_time}\n"
-            f"┣ 🆔 <b>Payload:</b> <code>{invoice.payload[:15]}...</code>\n"
+            f"┣ 📋 <b>ID:</b> <code>{invoice.id}</code>\n"
             f"┗ 🕒 <i>{formatted_time}</i>\n"
             f"┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄"
         )

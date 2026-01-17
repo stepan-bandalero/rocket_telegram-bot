@@ -16,3 +16,4 @@ class BroadcastTask(Base):
     failed = Column(Integer, default=0)
     status = Column(Text, default="pending")  # pending, sending, stopped, done
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
