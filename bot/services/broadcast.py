@@ -55,12 +55,10 @@ class BroadcastService:
 
                 task.sent += 1
             except Exception as e:
-                print(f"Ошибка отправки пользователю {user_id}: {e}")
                 task.failed += 1
 
-            # Обновляем прогресс каждые 10 отправок
-            # Обновляем прогресс каждые 10 отправок
-            if task.sent % 10 == 0:
+            # Обновляем прогресс каждые 100 отправок
+            if task.sent % 100 == 0:
                 try:
                     async with SessionLocal() as session:
                         session.add(task)
