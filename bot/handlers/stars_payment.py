@@ -49,6 +49,75 @@ async def create_invoice(message: Message):
         start_parameter=start_parameter
     )
 
+# async def process_referral_earning(
+#         session: AsyncSession,
+#         user_id: int,
+#         amount: int,
+#         source_type: str = "stars_payment"
+# ):
+#     """
+#     Обработка реферальных начислений
+#     """
+#     referrer_id = None
+#     referral_percentage = 10  # default 10%
+#
+#     # 1. Проверяем промо-рефералы
+#     promo_stmt = select(PromoReferral).join(
+#         PromoLink, PromoLink.id == PromoReferral.promo_id
+#     ).where(
+#         PromoReferral.user_id == user_id
+#     ).limit(1)
+#
+#     promo_result = await session.execute(promo_stmt)
+#     promo_referral = promo_result.scalar_one_or_none()
+#
+#     if promo_referral:
+#         referrer_id = promo_referral.promo.created_by
+#         referral_percentage = promo_referral.promo.referral_percentage or 40
+#     else:
+#         # 2. Проверяем обычные рефералы через поле referred_by
+#         user_stmt = select(User).where(User.telegram_id == user_id)
+#         user_result = await session.execute(user_stmt)
+#         user = user_result.scalar_one_or_none()
+#
+#         if user and user.referred_by:
+#             referrer_id = user.referred_by
+#
+#     # 3. Если нашли реферера - начисляем бонус
+#     if referrer_id:
+#         # Вычисляем сумму бонуса
+#         referral_amount = (amount * referral_percentage) // 100
+#
+#         if referral_amount > 0:
+#             # Обновляем баланс реферера
+#             referrer_stmt = select(User).where(User.telegram_id == referrer_id)
+#             referrer_result = await session.execute(referrer_stmt)
+#             referrer = referrer_result.scalar_one_or_none()
+#
+#             if referrer:
+#                 # Начисляем звезды рефереру
+#                 referrer.stars_balance = (referrer.stars_balance or 0) + referral_amount
+#
+#                 # Создаем запись о начислении
+#                 referral_earning = ReferralEarning(
+#                     referrer_id=referrer_id,
+#                     referred_user_id=user_id,
+#                     amount=referral_amount,
+#                     source_type=source_type,
+#                     source_id=amount  # можно сохранить сумму исходной транзакции
+#                 )
+#                 session.add(referral_earning)
+#
+#                 # Сохраняем изменения
+#                 await session.flush()
+#
+#                 return {
+#                     "referrer_id": referrer_id,
+#                     "referral_amount": referral_amount,
+#                     "referral_percentage": referral_percentage
+#                 }
+#
+#     return None
 async def process_referral_earning(
         session: AsyncSession,
         user_id: int,
@@ -61,9 +130,11 @@ async def process_referral_earning(
     referrer_id = None
     referral_percentage = 10  # default 10%
 
-    # 1. Проверяем промо-рефералы
-    promo_stmt = select(PromoReferral).join(
-        PromoLink, PromoLink.id == PromoReferral.promo_id
+    # 1. Проверяем промо-рефералы с EAGER LOADING
+    from sqlalchemy.orm import selectinload
+
+    promo_stmt = select(PromoReferral).options(
+        selectinload(PromoReferral.promo)
     ).where(
         PromoReferral.user_id == user_id
     ).limit(1)
@@ -71,7 +142,7 @@ async def process_referral_earning(
     promo_result = await session.execute(promo_stmt)
     promo_referral = promo_result.scalar_one_or_none()
 
-    if promo_referral:
+    if promo_referral and promo_referral.promo:
         referrer_id = promo_referral.promo.created_by
         referral_percentage = promo_referral.promo.referral_percentage or 40
     else:
