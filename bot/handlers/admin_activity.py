@@ -546,12 +546,12 @@ def build_activity_type_keyboard(user_id: int) -> InlineKeyboardMarkup:
                 callback_data=f"act_stats:{user_id}"
             )
         ],
-        [
-            InlineKeyboardButton(
-                text="🔙 Назад",
-                callback_data="act_back"
-            )
-        ]
+        # [
+        #     InlineKeyboardButton(
+        #         text="🔙 Назад",
+        #         callback_data="act_back"
+        #     )
+        # ]
     ])
     return keyboard
 

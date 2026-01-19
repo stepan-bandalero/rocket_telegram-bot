@@ -10,6 +10,7 @@ from aiogram.client.default import DefaultBotProperties
 
 from .config import settings
 from .middlewares.db import DataBaseSessionMiddleware
+from .middlewares.rate_limiter import RateLimiterMiddleware
 from .handlers import start, admin, admin_promos, admin_channels, admin_broadcast, admin_users, admin_gift, admin_balance, admin_activity, admin_stars, system_stats, business_debug, gift_payout, ton_requests, gift_promos, transactions, admin_user, stars_payment
 
 sys.path.append(str(Path(__file__).resolve().parent))
@@ -31,6 +32,7 @@ async def main():
 
     # Middleware для сессии
     dp.update.middleware(DataBaseSessionMiddleware())
+    dp.update.middleware(RateLimiterMiddleware(rate=25, time_period=1))
 
     # Роутеры
     dp.include_router(start.router)
@@ -84,11 +86,15 @@ if __name__ == "__main__":
 # from aiogram import Bot, Dispatcher
 # from aiogram.client.default import DefaultBotProperties
 # 
+# 
 # # Абсолютные импорты вместо относительных
 # sys.path.append(str(Path(__file__).resolve().parent.parent))
 # 
 # from bot.config import settings
 # from bot.middlewares.db import DataBaseSessionMiddleware
+# from bot.middlewares.rate_limiter import RateLimiterMiddleware
+# 
+# 
 # from bot.handlers import start, admin, admin_promos, admin_channels, admin_broadcast, admin_users, admin_gift, admin_balance, admin_activity, admin_stars, system_stats, business_debug, gift_payout, ton_requests, gift_promos, transactions, admin_user, stars_payment
 # 
 # logging.basicConfig(
@@ -108,6 +114,7 @@ if __name__ == "__main__":
 # 
 #     # Middleware для сессии
 #     dp.update.middleware(DataBaseSessionMiddleware())
+#     dp.update.middleware(RateLimiterMiddleware(rate=25, time_period=1))
 # 
 #     # Роутеры
 #     dp.include_router(start.router)
