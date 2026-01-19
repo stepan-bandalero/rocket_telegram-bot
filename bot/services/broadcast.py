@@ -96,7 +96,7 @@ class BroadcastService:
                     break
 
                 try:
-                    await asyncio.sleep(0.1)
+                    # await asyncio.sleep(0.1)
                     # Основной контент
                     if task.content_type == "text":
                         await BroadcastService._send_text(bot, user_id, task)
