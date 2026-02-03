@@ -75,8 +75,9 @@ if __name__ == "__main__":
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logger.info("⚠️ Бот был остановлен вручную")
-#
-#
+
+
+
 # import asyncio
 # import logging
 # import sys

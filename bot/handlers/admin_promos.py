@@ -16,11 +16,14 @@ from bot.services.promo import PromoService
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from urllib.parse import urlparse, parse_qs
 
 router = Router()
 router.message.middleware(DataBaseSessionMiddleware())
 
 ITEMS_PER_PAGE = 1  # Одна промо-ссылка на страницу
+
+bot_href = "https://t.me/RocketxAppBot"
 
 
 # ==================================================
@@ -191,7 +194,7 @@ async def get_promo_stats(session: AsyncSession, promo_id: int):
 def format_promo_stats(stats: dict) -> str:
     """Форматирование статистики промо-ссылки"""
     promo = stats["promo"]
-    promo_url = f"{settings.bot_href}?start={promo.code}"
+    promo_url = f"{bot_href}?startapp=ref__{promo.code}"
 
     # Преобразуем все к float для совместимости
     deposits_ton_ton = float(stats["deposits_ton"] / 100)
@@ -240,7 +243,7 @@ def format_promo_stats(stats: dict) -> str:
 def format_promo_basic_info(promo: PromoLink, referrals_count: int, total_deposits_ton: float, page: int,
                             total_pages: int) -> str:
     """Форматирование базовой информации о промо-ссылке"""
-    promo_url = f"{settings.bot_href}?start={promo.code}"
+    promo_url = f"{bot_href}?startapp=ref__{promo.code}"
 
     return (
         f"🎫 <b>ПРОМО-ССЫЛКА #{promo.id}</b>\n"
@@ -663,7 +666,7 @@ async def add_promo(message: Message, session: AsyncSession):
 
     promo = await PromoService.create_promo(session, tg_id, percent)
 
-    promo_url = f"{settings.bot_href}?start={promo.code}"
+    promo_url = f"{bot_href}?startapp=ref__{promo.code}"
 
     text = (
         "🎉 <b>Реферальная ссылка создана!</b>\n\n"
@@ -693,3 +696,112 @@ async def delete_promo(message: Message, session: AsyncSession):
         )
     else:
         await message.answer("⚠ Промо не найден.", parse_mode="HTML")
+
+
+
+
+
+# ==================================================
+# Команда /promo_stats - быстрая статистика по промо-ссылке
+# ==================================================
+@router.message(Command("ref"))
+async def cmd_promo_stats(message: Message, session: AsyncSession):
+    """
+    Команда для админов: /ref <промо_ссылка>
+    Показывает детальную статистику по промо-ссылке сразу
+    """
+    if message.from_user.id not in settings.admins:
+        return
+
+    # Получаем аргумент команды (промо-ссылку)
+    args = message.text.split()
+    if len(args) < 2:
+        await message.answer(
+            "❌ <b>Использование:</b>\n"
+            "<code>/ref &lt;промо_ссылка&gt;</code>\n\n"
+            "Пример:\n"
+            f"<code>/ref https://t.me/RocketxAppBot?startapp=ref__ABC123</code>\n\n"
+            "Или можно использовать код промо:\n"
+            "<code>/ref ABC123</code>",
+            parse_mode="HTML"
+        )
+        return
+
+    # Извлекаем промо-код из аргумента
+    promo_arg = args[1].strip()
+
+    # Пытаемся извлечь код из полной ссылки
+    promo_code = extract_promo_code(promo_arg)
+
+    if not promo_code:
+        await message.answer(
+            "❌ <b>Неверный формат промо-ссылки!</b>\n\n"
+            f"Пример правильной ссылки:\n"
+            f"<code>https://t.me/RocketxAppBot?startapp=ref__ABC123</code>\n\n"
+            "Или используйте просто код промо: <code>ABC123</code>",
+            parse_mode="HTML"
+        )
+        return
+
+    # Ищем промо по коду в базе данных
+    promo_stmt = (
+        select(PromoLink)
+        .where(PromoLink.code == promo_code)
+        .options(selectinload(PromoLink.referrals))
+    )
+    promo_result = await session.execute(promo_stmt)
+    promo = promo_result.scalar_one_or_none()
+
+    if not promo:
+        await message.answer(f"❌ Промо-ссылка с кодом <code>{promo_code}</code> не найдена.", parse_mode="HTML")
+        return
+
+    # Получаем полную статистику по промо-ссылке
+    stats = await get_promo_stats(session, promo.id)
+
+    if not stats:
+        await message.answer("❌ Не удалось получить статистику по промо-ссылке.")
+        return
+
+    # Форматируем и отправляем статистику
+    text = format_promo_stats(stats)
+
+    await message.answer(
+        text,
+        parse_mode="HTML",
+        disable_web_page_preview=True,
+        reply_markup=build_promo_actions_keyboard(promo.id)
+    )
+
+
+def extract_promo_code(promo_arg: str) -> str:
+    """
+    Извлекает промо-код из аргумента команды.
+    Поддерживает:
+    1. Полную ссылку: https://t.me/botname?startapp=ref__CODE
+    2. Короткую ссылку: t.me/botname?startapp=ref__CODE
+    3. Просто код: CODE
+    """
+    # Если аргумент - просто код (без ?startapp= и других символов URL)
+    if "?" not in promo_arg and "/" not in promo_arg:
+        return promo_arg
+
+    # Пытаемся извлечь код из параметра ?startapp=ref__
+    if "?startapp=ref__" in promo_arg:
+        # Разделяем по ?start=
+        parts = promo_arg.split("?startapp=ref__")
+        if len(parts) > 1:
+            # Берем часть после ?startapp=ref__ и убираем возможные дополнительные параметры
+            code_part = parts[1].split("&")[0]
+            return code_part.strip()
+
+    # Дополнительные проверки для других форматов ссылок
+    if "start=" in promo_arg:
+        # Ищем параметр start в строке
+        import re
+        match = re.search(r'[?&]start=([^&]+)', promo_arg)
+        if match:
+            return match.group(1).strip()
+
+    # Если ничего не нашли, возвращаем исходный аргумент (на случай, если это уже код)
+    return promo_arg.strip()
