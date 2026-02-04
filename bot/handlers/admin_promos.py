@@ -24,7 +24,7 @@ router.message.middleware(DataBaseSessionMiddleware())
 
 ITEMS_PER_PAGE = 1  # Одна промо-ссылка на страницу
 
-bot_href = "https://t.me/RocketxAppBot"
+bot_href = "https://t.me/RocketxAppBot/rocketapp"
 
 
 # ==================================================
@@ -899,7 +899,7 @@ async def cmd_promo_stats(message: Message, session: AsyncSession):
             "❌ <b>Использование:</b>\n"
             "<code>/ref &lt;промо_ссылка&gt;</code>\n\n"
             "Пример:\n"
-            f"<code>/ref https://t.me/RocketxAppBot?startapp=ref__ABC123</code>\n\n"
+            f"<code>/ref https://t.me/RocketxAppBot/rocketapp?startapp=ref__ABC123</code>\n\n"
             "Или можно использовать код промо:\n"
             "<code>/ref ABC123</code>",
             parse_mode="HTML"
@@ -916,7 +916,7 @@ async def cmd_promo_stats(message: Message, session: AsyncSession):
         await message.answer(
             "❌ <b>Неверный формат промо-ссылки!</b>\n\n"
             f"Пример правильной ссылки:\n"
-            f"<code>https://t.me/RocketxAppBot?startapp=ref__ABC123</code>\n\n"
+            f"<code>https://t.me/RocketxAppBot/rocketapp?startapp=ref__ABC123</code>\n\n"
             "Или используйте просто код промо: <code>ABC123</code>",
             parse_mode="HTML"
         )
