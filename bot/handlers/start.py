@@ -56,7 +56,8 @@ async def cmd_start(message: Message, bot: Bot, session: AsyncSession):
         await message.answer_photo(
             photo="https://i.ibb.co/YFFsrwW3/5678867.jpg",
             caption="🚀 <b>Добро пожаловать в ROCKET!\n\n Для авторизации</b> подпишитесь на канал и нажмите <b>«Продолжить».</b>",
-            reply_markup=kb
+            reply_markup=kb,
+            parse_mode="HTML"
         )
         return
 
@@ -66,7 +67,8 @@ async def cmd_start(message: Message, bot: Bot, session: AsyncSession):
                 "🪙 <b>Стейкинг, турниры, дропы</b> с бонусами и эксклюзивными <b>NFT</b> каждый день\n"
                 "🎁 Более <b>5000 NFT подарков</b> уже отправлены победителям <b>ROCKET</b>\n\n"
                 "Скорее жми кнопку <b>«Запустить»</b>",
-        reply_markup=keyboard
+        reply_markup=keyboard,
+        parse_mode="HTML"
     )
 
 
@@ -88,6 +90,7 @@ async def cb_check_subs(callback: CallbackQuery, bot: Bot, session: AsyncSession
                         "🎁 Более <b>5000 NFT подарков</b> уже отправлены победителям <b>ROCKET</b>\n\n"
                         "Скорее жми кнопку <b>«Запустить»</b>"
             ),
-            reply_markup=keyboard
+            reply_markup=keyboard,
+            parse_mode="HTML"
         )
 

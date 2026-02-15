@@ -1,5 +1,7 @@
 # bot/models/broadcast_task.py
 from sqlalchemy import Column, Integer, Text, Boolean, TIMESTAMP, JSON, func
+from sqlalchemy.dialects.postgresql import JSONB
+
 from bot.db import Base
 
 
@@ -15,5 +17,7 @@ class BroadcastTask(Base):
     sent = Column(Integer, default=0)
     failed = Column(Integer, default=0)
     status = Column(Text, default="pending")  # pending, sending, stopped, done
+    entities = Column(JSONB, nullable=True)
+
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 

@@ -5,11 +5,12 @@ from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from sqlalchemy import select
+from aiogram.types import MessageEntity
 
 from bot.db import SessionLocal
 from bot.services.broadcast import BroadcastService
 from bot.states.broadcast_states import BroadcastStates
-from bot.utils.formatter import TelegramFormatter
+# from bot.utils.formatter import TelegramFormatter
 from bot.utils.keyboards import (
     broadcast_main_kb,
     broadcast_constructor_kb,
@@ -48,7 +49,7 @@ async def broadcast_constructor(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
         f"🎨 <b>Конструктор рассылки</b>\n\n{preview_text}",
         reply_markup=broadcast_constructor_kb(draft),
-        parse_mode="HTML"
+        # parse_mode="HTML"
     )
 
 
@@ -86,34 +87,6 @@ async def edit_component(callback: CallbackQuery, state: FSMContext):
 
 
 
-# bot/handlers/broadcast.py
-# @router.message(BroadcastStates.editing_text)
-# async def process_text_edit(message: Message, state: FSMContext):
-#     """Обработка нового текста с преобразованием в HTML"""
-#     user_id = message.from_user.id
-#     if user_id not in BroadcastService.current_editing:
-#         return
-#
-#     draft = BroadcastService.current_editing[user_id]
-#
-#     # Преобразуем форматирование в HTML
-#     html_text = TelegramFormatter.entities_to_html(
-#         message.text or "",
-#         message.entities or []
-#     )
-#
-#     draft.text = html_text  # Сохраняем как HTML
-#
-#     preview_text = await _generate_preview_text(draft)
-#     await message.answer(
-#         f"✅ <b>Текст обновлен!</b>\n\n{preview_text}",
-#         reply_markup=broadcast_constructor_kb(draft),
-#         parse_mode="HTML"
-#     )
-#     await state.clear()
-
-
-
 @router.message(BroadcastStates.editing_text)
 async def process_text_edit(message: Message, state: FSMContext):
     """Обработка нового текста"""
@@ -122,71 +95,61 @@ async def process_text_edit(message: Message, state: FSMContext):
         return
 
     draft = BroadcastService.current_editing[user_id]
+    print(message.entities)
 
     # Сохраняем как JSON с entities
-    message_json, parse_mode = TelegramFormatter.prepare_message_text(
-        message.text or "",
-        message.entities or []
-    )
+    # message_json, parse_mode = TelegramFormatter.prepare_message_text(
+    #     message.text or "",
+    #     message.entities or []
+    # )
+    #
+    # draft.text = message_json
+    draft.text = message.text or ""
 
-    draft.text = message_json
+    if message.entities:
+        draft.entities = [
+            {
+                "type": e.type,
+                "offset": e.offset,
+                "length": e.length,
+                "url": e.url,
+                "user": e.user.id if e.user else None,
+                "language": e.language,
+                "custom_emoji_id": e.custom_emoji_id,
+            }
+            for e in message.entities
+        ]
+    else:
+        draft.entities = None
 
     # Для предпросмотра - используем встроенный метод aiogram
-    if message.entities:
-        # Просто копируем сообщение для предпросмотра
-        await message.copy_to(
-            chat_id=message.chat.id,
-            caption=f"✅ <b>Текст обновлен!</b>\n\n",
-            reply_markup=broadcast_constructor_kb(draft),
-            parse_mode="HTML"
-        )
-    else:
-        await message.answer(
-            f"✅ <b>Текст обновлен!</b>\n\n{message.text}",
-            reply_markup=broadcast_constructor_kb(draft),
-            parse_mode="HTML"
-        )
+    # if message.entities:
+    #     # Просто копируем сообщение для предпросмотра
+    #     await message.copy_to(
+    #         chat_id=message.chat.id,
+    #         caption=f"✅ <b>Текст обновлен!</b>\n\n",
+    #         reply_markup=broadcast_constructor_kb(draft),
+    #         parse_mode="HTML"
+    #     )
+    # else:
+    #     await message.answer(
+    #         f"✅ <b>Текст обновлен!</b>\n\n{message.text}",
+    #         reply_markup=broadcast_constructor_kb(draft),
+    #         parse_mode="HTML"
+    #     )
+
+
+    entities = None
+    if draft.entities:
+        entities = [MessageEntity(**e) for e in draft.entities]
+
+    await message.answer(
+        draft.text,
+        entities=entities,
+        reply_markup=broadcast_constructor_kb(draft)
+    )
 
     await state.clear()
-
-
-# @router.message(BroadcastStates.editing_media)
-# async def process_media_edit(message: Message, state: FSMContext):
-#     """Обработка нового медиа с преобразованием подписи в HTML"""
-#     user_id = message.from_user.id
-#     if user_id not in BroadcastService.current_editing:
-#         return
-#
-#     draft = BroadcastService.current_editing[user_id]
-#
-#     # Обрабатываем подпись если есть
-#     if message.caption:
-#         html_text, parse_mode = TelegramFormatter.prepare_caption_text(
-#             message.caption,
-#             message.caption_entities or []
-#         )
-#         draft.text = html_text
-#     elif not draft.text:  # Если текста еще нет
-#         draft.text = "📢 Ваш текст рассылки здесь..."
-#
-#     # Обрабатываем медиа
-#     if message.photo:
-#         draft.content_type = "photo"
-#         draft.media = message.photo[-1].file_id
-#     elif message.video:
-#         draft.content_type = "video"
-#         draft.media = message.video.file_id
-#     elif message.video_note:
-#         draft.content_type = "video_note"
-#         draft.media = message.video_note.file_id
-#
-#     preview_text = await _generate_preview_text(draft)
-#     await message.answer(
-#         f"✅ <b>Медиа обновлено!</b>\n\n{preview_text}",
-#         reply_markup=broadcast_constructor_kb(draft),
-#         parse_mode="HTML"
-#     )
-#     await state.clear()
 
 
 @router.message(BroadcastStates.editing_media)
@@ -200,11 +163,29 @@ async def process_media_edit(message: Message, state: FSMContext):
 
     # Обрабатываем подпись если есть
     if message.caption:
-        html_text, parse_mode = TelegramFormatter.prepare_caption_text(
-            message.caption,
-            message.caption_entities or []
-        )
-        draft.text = html_text
+        # html_text, parse_mode = TelegramFormatter.prepare_caption_text(
+        #     message.caption,
+        #     message.caption_entities or []
+        # )
+        # draft.text = html_text
+        draft.text = message.caption
+
+        if message.caption_entities:
+            draft.entities = [
+                {
+                    "type": e.type,
+                    "offset": e.offset,
+                    "length": e.length,
+                    "url": e.url,
+                    "user": e.user.id if e.user else None,
+                    "language": e.language,
+                    "custom_emoji_id": e.custom_emoji_id,
+                }
+                for e in message.caption_entities
+            ]
+        else:
+            draft.entities = None
+
     elif not draft.text:  # Если текста еще нет
         draft.text = "📢 Ваш текст рассылки здесь..."
 
@@ -223,7 +204,7 @@ async def process_media_edit(message: Message, state: FSMContext):
     await message.answer(
         f"✅ <b>Медиа обновлено!</b>\n\n{preview_text}",
         reply_markup=broadcast_constructor_kb(draft),
-        parse_mode="HTML"
+        # parse_mode="HTML"
     )
     await state.clear()
 
@@ -249,44 +230,8 @@ async def set_content_type(callback: CallbackQuery):
     await callback.message.edit_text(
         f"✅ <b>Тип контента изменен!</b>\n\n{preview_text}",
         reply_markup=broadcast_constructor_kb(draft),
-        parse_mode="HTML"
+        # parse_mode="HTML"
     )
-
-
-
-# bot/handlers/broadcast.py
-# @router.callback_query(F.data == "preview_broadcast")
-# async def preview_broadcast(callback: CallbackQuery):
-#     """Предпросмотр с HTML форматированием"""
-#     user_id = callback.from_user.id
-#     if user_id not in BroadcastService.current_editing:
-#         await callback.answer("Черновик не найден!")
-#         return
-#
-#     draft = BroadcastService.current_editing[user_id]
-#
-#     try:
-#         # Всегда используем parse_mode="HTML" для предпросмотра
-#         if draft.buttons:
-#             kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(**b) for b in draft.buttons]])
-#         else:
-#             kb = None
-#
-#         if draft.content_type == "text":
-#             await callback.message.answer(draft.text, reply_markup=kb, parse_mode="HTML")
-#         elif draft.content_type == "photo":
-#             await callback.message.answer_photo(draft.media, caption=draft.text, reply_markup=kb, parse_mode="HTML")
-#         elif draft.content_type == "video":
-#             await callback.message.answer_video(draft.media, caption=draft.text, reply_markup=kb, parse_mode="HTML")
-#         elif draft.content_type == "video_note":
-#             await callback.message.answer_video_note(draft.media)
-#             if draft.text:
-#                 await callback.message.answer(draft.text, reply_markup=kb, parse_mode="HTML")
-#
-#         await callback.answer("Предпросмотр отправлен!")
-#     except Exception as e:
-#         await callback.answer(f"Ошибка: {str(e)}")
-
 
 
 @router.callback_query(F.data == "preview_broadcast")
@@ -298,6 +243,11 @@ async def preview_broadcast(callback: CallbackQuery):
         return
 
     draft = BroadcastService.current_editing[user_id]
+
+    entities = None
+    if draft.entities:
+        entities = [MessageEntity(**e) for e in draft.entities]
+
 
     try:
         # Обработка кнопок
@@ -344,22 +294,35 @@ async def preview_broadcast(callback: CallbackQuery):
 
         # Отправляем предпросмотр в зависимости от типа контента
         if content_type == "text":
+            # await callback.message.answer(
+            #     text,
+            #     reply_markup=kb,
+            #     # parse_mode="HTML"
+            # )
             await callback.message.answer(
                 text,
-                reply_markup=kb,
-                parse_mode="HTML"
+                entities=entities,
+                reply_markup=kb
             )
+
 
         elif content_type == "photo":
             if not media:
                 await callback.answer("Фото для предпросмотра отсутствует!")
                 return
+            # await callback.message.answer_photo(
+            #     media,
+            #     caption=text if text else None,
+            #     reply_markup=kb,
+            #     # parse_mode="HTML"
+            # )
             await callback.message.answer_photo(
                 media,
                 caption=text if text else None,
-                reply_markup=kb,
-                parse_mode="HTML"
+                caption_entities=entities,
+                reply_markup=kb
             )
+
 
         elif content_type == "video":
             if not media:
@@ -369,7 +332,9 @@ async def preview_broadcast(callback: CallbackQuery):
                 media,
                 caption=text if text else None,
                 reply_markup=kb,
-                parse_mode="HTML"
+                caption_entities=entities
+
+                # parse_mode="HTML"
             )
 
         elif content_type == "video_note":
@@ -378,10 +343,15 @@ async def preview_broadcast(callback: CallbackQuery):
                 return
             await callback.message.answer_video_note(media)
             if text:
+                # await callback.message.answer(
+                #     text,
+                #     reply_markup=kb,
+                #     # parse_mode="HTML"
+                # )
                 await callback.message.answer(
                     text,
-                    reply_markup=kb,
-                    parse_mode="HTML"
+                    entities=entities,
+                    reply_markup=kb
                 )
 
         await callback.answer("✅ Предпросмотр отправлен!")
@@ -389,26 +359,6 @@ async def preview_broadcast(callback: CallbackQuery):
     except Exception as e:
         print(f"Ошибка при предпросмотре: {e}")
         await callback.answer(f"❌ Ошибка: {str(e)}")
-
-
-# async def _generate_preview_text(draft) -> str:
-#     """Генерирует текст предпросмотра"""
-#     type_icons = {
-#         "text": "📝", "photo": "📷",
-#         "video": "🎥", "video_note": "📹"
-#     }
-# 
-#     text = (
-#         f"{type_icons.get(draft.content_type, '📝')} <b>Тип:</b> {draft.content_type}\n"
-#         f"📄 <b>Текст:</b> {draft.text[:100] + '...' if len(draft.text) > 100 else draft.text}\n"
-#     )
-# 
-#     if draft.media:
-#         text += f"🖼️ <b>Медиа:</b> ✅\n"
-# 
-#     text += f"🔘 <b>Кнопки:</b> {len(draft.buttons)} шт.\n"
-# 
-#     return text
 
 
 async def _generate_preview_text(draft) -> str:
@@ -426,8 +376,9 @@ async def _generate_preview_text(draft) -> str:
 
     # Обрезаем текст для предпросмотра (убираем HTML теги для отображения)
     import re
-    clean_text = re.sub('<.*?>', '', text)  # Удаляем HTML теги
-    text_preview = clean_text[:100] + '...' if len(clean_text) > 100 else clean_text
+    # clean_text = re.sub('<.*?>', '', text)  # Удаляем HTML теги
+    # text_preview = clean_text[:100] + '...' if len(clean_text) > 100 else clean_text
+    text_preview = text[:100] + '...' if len(text) > 100 else text
 
     # Собираем текст предпросмотра
     preview_parts = [
@@ -452,163 +403,6 @@ async def _generate_preview_text(draft) -> str:
     preview_parts.append(f"🔘 <b>Кнопки:</b> {buttons_count} шт.")
 
     return "\n".join(preview_parts)
-
-
-# bot/handlers/broadcast.py (продолжение)
-# 
-# @router.callback_query(F.data == "add_button")
-# async def add_button_start(callback: CallbackQuery, state: FSMContext):
-#     """Начало добавления кнопки"""
-#     await callback.message.edit_text(
-#         "🔘 <b>Добавление кнопки</b>\n\n"
-#         "Выберите тип кнопки:",
-#         reply_markup=button_type_kb()
-#     )
-# 
-# 
-# @router.callback_query(F.data == "button_type_url")
-# async def add_url_button(callback: CallbackQuery, state: FSMContext):
-#     """Добавление URL-кнопки"""
-#     await state.set_state(BroadcastStates.editing_buttons)
-#     await state.update_data(button_type="url")
-# 
-#     await callback.message.edit_text(
-#         "🔗 <b>Добавление URL-кнопки</b>\n\n"
-#         "Отправьте текст кнопки и URL через запятую:\n"
-#         "Пример: <code>Мой сайт, https://example.com</code>",
-#         parse_mode="HTML"
-#     )
-# 
-# 
-# @router.callback_query(F.data == "button_type_webapp")
-# async def add_webapp_button(callback: CallbackQuery, state: FSMContext):
-#     """Добавление Web App кнопки"""
-#     await state.set_state(BroadcastStates.editing_buttons)
-#     await state.update_data(button_type="web_app")
-# 
-#     await callback.message.edit_text(
-#         "⚡ <b>Добавление Web App кнопки</b>\n\n"
-#         "Отправьте текст кнопки и URL Web App через запятую:\n"
-#         "Пример: <code>Открыть приложение, https://example.com</code>",
-#         parse_mode="HTML"
-#     )
-# 
-# 
-# @router.message(BroadcastStates.editing_buttons)
-# async def process_button_add(message: Message, state: FSMContext):
-#     """Обработка добавления кнопки"""
-#     user_id = message.from_user.id
-#     if user_id not in BroadcastService.current_editing:
-#         await message.answer("Черновик не найден!")
-#         return
-# 
-#     data = await state.get_data()
-#     button_type = data.get("button_type", "url")
-# 
-#     try:
-#         parts = message.text.split(',', 1)
-#         if len(parts) != 2:
-#             raise ValueError("Неверный формат")
-# 
-#         text = parts[0].strip()
-#         url = parts[1].strip()
-# 
-#         draft = BroadcastService.current_editing[user_id]
-# 
-#         if button_type == "url":
-#             new_button = {"text": text, "url": url}
-#         else:  # web_app
-#             new_button = {"text": text, "web_app": {"url": url}}
-# 
-#         draft.buttons.append(new_button)
-# 
-#         await message.answer(
-#             f"✅ <b>Кнопка добавлена!</b>\n\n"
-#             f"Текст: {text}\n"
-#             f"URL: {url}\n\n"
-#             f"Всего кнопок: {len(draft.buttons)}",
-#             reply_markup=buttons_management_kb()
-#         )
-# 
-#     except Exception as e:
-#         await message.answer(
-#             "❌ <b>Ошибка формата!</b>\n\n"
-#             "Пожалуйста, используйте формат:\n"
-#             "<code>Текст кнопки, https://example.com</code>",
-#             parse_mode="HTML"
-#         )
-# 
-#     await state.clear()
-# 
-# 
-# @router.callback_query(F.data == "edit_buttons_list")
-# async def edit_buttons_list(callback: CallbackQuery):
-#     """Редактирование списка кнопок"""
-#     user_id = callback.from_user.id
-#     if user_id not in BroadcastService.current_editing:
-#         await callback.answer("Черновик не найден!")
-#         return
-# 
-#     draft = BroadcastService.current_editing[user_id]
-# 
-#     if not draft.buttons:
-#         await callback.answer("Нет кнопок для редактирования!")
-#         return
-# 
-#     buttons_text = "\n".join([
-#         f"{i + 1}. {btn['text']} - {btn.get('url', btn.get('web_app', {}).get('url', 'N/A'))}"
-#         for i, btn in enumerate(draft.buttons)
-#     ])
-# 
-#     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-#         *[[InlineKeyboardButton(text=f"❌ Удалить {i + 1}", callback_data=f"remove_button_{i}")]
-#           for i in range(len(draft.buttons))],
-#         [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_buttons_management")]
-#     ])
-# 
-#     await callback.message.edit_text(
-#         f"🔘 <b>Редактирование кнопок</b>\n\n{buttons_text}",
-#         reply_markup=keyboard
-#     )
-# 
-# 
-# @router.callback_query(F.data.startswith("remove_button_"))
-# async def remove_button(callback: CallbackQuery):
-#     """Удаление кнопки"""
-#     user_id = callback.from_user.id
-#     if user_id not in BroadcastService.current_editing:
-#         await callback.answer("Черновик не найден!")
-#         return
-# 
-#     button_index = int(callback.data.replace("remove_button_", ""))
-#     draft = BroadcastService.current_editing[user_id]
-# 
-#     if 0 <= button_index < len(draft.buttons):
-#         removed_button = draft.buttons.pop(button_index)
-#         await callback.answer(f"Кнопка '{removed_button['text']}' удалена!")
-# 
-#         # Обновляем список кнопок
-#         await edit_buttons_list(callback)
-#     else:
-#         await callback.answer("Кнопка не найдена!")
-# 
-# 
-# @router.callback_query(F.data == "clear_buttons")
-# async def clear_buttons(callback: CallbackQuery):
-#     """Очистка всех кнопок"""
-#     user_id = callback.from_user.id
-#     if user_id not in BroadcastService.current_editing:
-#         await callback.answer("Черновик не найден!")
-#         return
-# 
-#     draft = BroadcastService.current_editing[user_id]
-#     draft.buttons.clear()
-# 
-#     await callback.message.edit_text(
-#         "✅ <b>Все кнопки очищены!</b>",
-#         reply_markup=buttons_management_kb()
-#     )
-
 
 @router.callback_query(F.data == "add_button")
 async def add_button_start(callback: CallbackQuery):
@@ -1061,7 +855,7 @@ async def save_editing(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
         f"✅ <b>Изменения сохранены!</b>\n\n{preview_text}",
         reply_markup=broadcast_constructor_kb(draft),
-        parse_mode="HTML"
+        # parse_mode="HTML"
     )
 
 
@@ -1081,7 +875,7 @@ async def cancel_editing(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
         f"🎨 <b>Конструктор рассылки</b>\n\n{preview_text}",
         reply_markup=broadcast_constructor_kb(draft),
-        parse_mode="HTML"
+        # parse_mode="HTML"
     )
 
 

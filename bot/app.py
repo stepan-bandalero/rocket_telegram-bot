@@ -26,7 +26,6 @@ logger = logging.getLogger(__name__)
 async def main():
     bot = Bot(
         token=settings.bot_token,
-        default=DefaultBotProperties(parse_mode="HTML"),
     )
     dp = Dispatcher()
 
@@ -77,7 +76,7 @@ if __name__ == "__main__":
         logger.info("⚠️ Бот был остановлен вручную")
 
 
-
+#
 # import asyncio
 # import logging
 # import sys
@@ -109,7 +108,7 @@ if __name__ == "__main__":
 # async def main():
 #     bot = Bot(
 #         token=settings.bot_token,
-#         default=DefaultBotProperties(parse_mode="HTML"),
+#         # default=DefaultBotProperties(parse_mode="HTML"),
 #     )
 #     dp = Dispatcher()
 #
