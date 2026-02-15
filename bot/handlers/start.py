@@ -82,15 +82,29 @@ async def cb_check_subs(callback: CallbackQuery, bot: Bot, session: AsyncSession
     else:
         user = await session.get(User, user_id)
 
+        # await callback.message.edit_media(
+        #     media=InputMediaPhoto(
+        #         media="https://i.ibb.co/M59wqfSj/IMG-4720.jpg",
+        #         caption="<b>ROCKET</b> — Первая <b>NFT краш игра</b> с тысячами <b>подарков</b> в <b>Telegram!</b> \n\n"
+        #                 "🪙 <b>Стейкинг, турниры, дропы</b> с бонусами и эксклюзивными <b>NFT</b> каждый день\n"
+        #                 "🎁 Более <b>5000 NFT подарков</b> уже отправлены победителям <b>ROCKET</b>\n\n"
+        #                 "Скорее жми кнопку <b>«Запустить»</b>"
+        #     ),
+        #     reply_markup=keyboard,
+        #     parse_mode="HTML"
+        # )
         await callback.message.edit_media(
-            media=InputMediaPhoto(
-                media="https://i.ibb.co/M59wqfSj/IMG-4720.jpg",
-                caption="<b>ROCKET</b> — Первая <b>NFT краш игра</b> с тысячами <b>подарков</b> в <b>Telegram!</b> \n\n"
-                        "🪙 <b>Стейкинг, турниры, дропы</b> с бонусами и эксклюзивными <b>NFT</b> каждый день\n"
-                        "🎁 Более <b>5000 NFT подарков</b> уже отправлены победителям <b>ROCKET</b>\n\n"
-                        "Скорее жми кнопку <b>«Запустить»</b>"
-            ),
-            reply_markup=keyboard,
-            parse_mode="HTML"
+            media=InputMediaPhoto(media="https://i.ibb.co/M59wqfSj/IMG-4720.jpg"),
+            reply_markup=keyboard
         )
+
+        await callback.message.edit_caption(
+            caption="<b>ROCKET</b> — Первая <b>NFT краш игра</b> с тысячами <b>подарков</b> в <b>Telegram!</b>\n\n"
+                    "🪙 <b>Стейкинг, турниры, дропы</b> с бонусами и эксклюзивными <b>NFT</b> каждый день\n"
+                    "🎁 Более <b>5000 NFT подарков</b> уже отправлены победителям <b>ROCKET</b>\n\n"
+                    "Скорее жми кнопку <b>«Запустить»</b>",
+            parse_mode="HTML",
+            reply_markup=keyboard
+        )
+
 
