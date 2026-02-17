@@ -86,112 +86,6 @@ def build_promos_list_keyboard(page: int, has_prev: bool, has_next: bool, promo_
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-# ==================================================
-# Получение и форматирование статистики по промо-ссылке
-# ==================================================
-# async def get_promo_stats(session: AsyncSession, promo_id: int):
-#     """Получение полной статистики по промо-ссылке"""
-#     # Основная информация о промо с загрузкой рефералов
-#     promo_stmt = (
-#         select(PromoLink)
-#         .where(PromoLink.id == promo_id)
-#         .options(selectinload(PromoLink.referrals))
-#     )
-#     promo_result = await session.execute(promo_stmt)
-#     promo = promo_result.scalar_one_or_none()
-#
-#     if not promo:
-#         return None
-#
-#     # Получаем ID всех рефералов этой промо-ссылки
-#     referral_user_ids = [ref.user_id for ref in promo.referrals]
-#
-#     # Реальные реферальные отчисления
-#     actual_earnings = await session.scalar(
-#         select(func.coalesce(func.sum(ReferralEarning.amount), 0)).where(
-#             ReferralEarning.referrer_id == promo.created_by
-#         )
-#     )
-#
-#     # Инициализируем статистику с нулевыми значениями
-#     stats = {
-#         "promo": promo,
-#         "referral_count": len(referral_user_ids),
-#         "actual_earnings": actual_earnings or 0,
-#         "deposits_ton": 0,
-#         "deposits_gift": 0,
-#         "gift_deposits_count": 0,
-#         "ton_withdrawals": 0,
-#         "gift_withdrawals": 0,
-#         "active_users": 0,
-#     }
-#
-#     if not referral_user_ids:
-#         return stats
-#
-#     # Сумма депозитов в TON
-#     deposits_ton = await session.scalar(
-#         select(func.coalesce(func.sum(UserTransaction.amount), 0)).where(
-#             (UserTransaction.user_id.in_(referral_user_ids)) &
-#             (UserTransaction.type == "deposit") &
-#             (UserTransaction.currency == "ton")
-#         )
-#     )
-#
-#     # Сумма депозитов в подарках
-#     deposits_gift = await session.scalar(
-#         select(func.coalesce(func.sum(UserTransaction.amount), 0)).where(
-#             (UserTransaction.user_id.in_(referral_user_ids)) &
-#             (UserTransaction.type == "deposit") &
-#             (UserTransaction.currency == "gift")
-#         )
-#     )
-#
-#     # Количество пополнений подарков
-#     gift_deposits_count = await session.scalar(
-#         select(func.count(UserTransaction.id)).where(
-#             (UserTransaction.user_id.in_(referral_user_ids)) &
-#             (UserTransaction.type == "deposit") &
-#             (UserTransaction.currency == "gift")
-#         )
-#     )
-#
-#     # Сумма выводов TON
-#     ton_withdrawals = await session.scalar(
-#         select(func.coalesce(func.sum(WithdrawRequest.amount), 0)).where(
-#             (WithdrawRequest.user_id.in_(referral_user_ids)) &
-#             (WithdrawRequest.status == "done")
-#         )
-#     )
-#
-#     # Сумма выводов подарков
-#     gift_withdrawals = await session.scalar(
-#         select(func.coalesce(func.sum(GiftWithdrawal.purchase_price_cents), 0)).where(
-#             (GiftWithdrawal.user_id.in_(referral_user_ids)) &
-#             (GiftWithdrawal.status == "done")
-#         )
-#     )
-#
-#     # Активные пользователи (те, у кого есть депозиты)
-#     active_users = await session.scalar(
-#         select(func.count(func.distinct(UserTransaction.user_id))).where(
-#             (UserTransaction.user_id.in_(referral_user_ids)) &
-#             (UserTransaction.type == "deposit")
-#         )
-#     )
-#
-#     stats.update({
-#         "deposits_ton": deposits_ton or 0,
-#         "deposits_gift": deposits_gift or 0,
-#         "gift_deposits_count": gift_deposits_count or 0,
-#         "ton_withdrawals": ton_withdrawals or 0,
-#         "gift_withdrawals": gift_withdrawals or 0,
-#         "active_users": active_users or 0,
-#     })
-#
-#     return stats
-
-
 async def get_promo_stats(session: AsyncSession, promo_id: int):
     """Получение полной статистики по промо-ссылке"""
     # Основная информация о промо с загрузкой рефералов
@@ -314,54 +208,6 @@ async def get_promo_stats(session: AsyncSession, promo_id: int):
 
     return stats
 
-
-# def format_promo_stats(stats: dict) -> str:
-#     """Форматирование статистики промо-ссылки"""
-#     promo = stats["promo"]
-#     promo_url = f"{bot_href}?startapp=ref__{promo.code}"
-#
-#     # Преобразуем все к float для совместимости
-#     deposits_ton_ton = float(stats["deposits_ton"] / 100)
-#     deposits_gift_ton = float(stats["deposits_gift"] / 100)
-#     total_deposits_ton = deposits_ton_ton + deposits_gift_ton
-#     ton_withdrawals_ton = float(stats["ton_withdrawals"] / 100)
-#     gift_withdrawals_ton = float(stats["gift_withdrawals"] / 100)
-#     total_withdrawals_ton = ton_withdrawals_ton + gift_withdrawals_ton
-#     actual_earnings_ton = float(stats["actual_earnings"] / 100)
-#
-#     # Расчетные отчисления (на основе процента от депозитов)
-#     calculated_earnings = total_deposits_ton * (promo.referral_percentage / 100)
-#
-#     return (
-#         f"🎫 <b>ПРОМО-ССЫЛКА</b>\n"
-#         f"━━━━━━━━━━━━━━━\n"
-#         f"🔗 <b>Ссылка:</b> <code>{promo_url}</code>\n"
-#         f"👤 <b>Создал:</b> <code>{promo.created_by}</code>\n"
-#         f"📈 <b>Процент:</b> <b>{promo.referral_percentage}%</b>\n"
-#         f"📅 <b>Создана:</b> {promo.created_at.strftime('%Y-%m-%d %H:%M')}\n"
-#         f"\n"
-#         f"📊 <b>СТАТИСТИКА</b>\n"
-#         f"👥 <b>Переходов:</b> {stats['referral_count']}\n"
-#         f"🟢 <b>Активных:</b> {stats['active_users']}\n"
-#         f"\n"
-#         f"💰 <b>Пополнения:</b>\n"
-#         f"  ┣ TON: <b>{deposits_ton_ton:,.2f} TON</b>\n"
-#         f"  ┣ Подарки: <b>{deposits_gift_ton:,.2f} TON</b>\n"
-#         f"  ┗ Всего: <b>{total_deposits_ton:,.2f} TON</b>\n"
-#         f"\n"
-#         f"🎁 <b>Пополнения подарков:</b>\n"
-#         f"  ┣ Количество: <b>{stats['gift_deposits_count']}</b>\n"
-#         f"  ┗ Сумма: <b>{deposits_gift_ton:,.2f} TON</b>\n"
-#         f"\n"
-#         f"🏦 <b>Выводы:</b>\n"
-#         f"  ┣ TON: <b>{ton_withdrawals_ton:,.2f} TON</b>\n"
-#         f"  ┣ Подарки: <b>{gift_withdrawals_ton:,.2f} TON</b>\n"
-#         f"  ┗ Всего: <b>{total_withdrawals_ton:,.2f} TON</b>\n"
-#         f"\n"
-#         f"💸 <b>РЕФЕРАЛЬНЫЕ ОТЧИСЛЕНИЯ</b>\n"
-#         f"  ┣ Фактические: <b>{actual_earnings_ton:,.2f} TON</b>\n"
-#         f"  ┗ Расчетные: <b>{calculated_earnings:,.2f} TON</b>\n"
-#     )
 
 
 def format_promo_stats(stats: dict) -> str:
@@ -854,7 +700,7 @@ async def add_promo(message: Message, session: AsyncSession):
         f"📈 <b>Процент:</b> <code>{promo.referral_percentage}%</code>"
     )
 
-    await message.answer(text, disable_web_page_preview=True)
+    await message.answer(text, disable_web_page_preview=True, parse_mode="HTML")
 
 
 @router.message(F.text.startswith("/delete_promo"))
