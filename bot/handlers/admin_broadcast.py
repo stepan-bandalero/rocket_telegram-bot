@@ -6,35 +6,120 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.fsm.context import FSMContext
 from sqlalchemy import select
 from aiogram.types import MessageEntity
+from handlers.admin_activity import CASES_DATA
 
 from bot.db import SessionLocal
 from bot.services.broadcast import BroadcastService
 from bot.states.broadcast_states import BroadcastStates
-# from bot.utils.formatter import TelegramFormatter
 from bot.utils.keyboards import (
     broadcast_main_kb,
     broadcast_constructor_kb,
     buttons_management_kb,
     button_type_kb,
     broadcast_active_kb,
-    broadcast_control_kb
+    broadcast_control_kb,
 )
+from bot.utils.broadcast_formatting import progress_bar, format_time_delta, decline_word
 
 router = Router()
+
+
+
+CASE_EMOJIS = {
+    "case-1": "5206502842478638898",  # Free 24h
+    "case-32": "5406756500108501710", # Free
+    "case-13": "5323420626893963255", # Farm (stars)
+    "case-33": "5323393091858631247", # Farm Cap
+    "case-26": "5294476812221439592", # Heart (stars)
+    "case-27": "5319126771994490119", # Arm (stars)
+    "case-15": "5283006569481525574", # Oscar (stars)
+    "case-16": "5272007523308689132", # Perfume (stars)
+    "case-31": "5449449325434266744", # Winter (stars)
+    "case-18": "5325685779760962109", # Magic (stars)
+    "case-28": "5438222109123834742", # Snoop (stars)
+    "case-19": "5352734865315881645", # Ring (stars)
+    "case-29": "5395476176527447827", # Gem (stars)
+    "case-20": "5330191715850541636", # Cap (stars)
+    "case-21": "5850233704739246397", # VIP (stars)
+    "case-36": "5292092955048302153", # Peach (stars)
+    "case-40": "5424698365210297589", # Durovs (stars)
+}
+
+
+
+@router.message(BroadcastStates.waiting_forward, F.forward_origin | F.forward_from | F.forward_from_chat)
+async def process_forwarded_message(message: Message, state: FSMContext):
+    """Обработка пересланного сообщения (текст, фото, видео, видео-кружок)"""
+    user_id = message.from_user.id
+
+
+    draft = BroadcastService.current_editing[user_id]
+
+    # Извлекаем текст/подпись и entities
+    text = message.text or message.caption
+    entities = message.entities or message.caption_entities
+
+    if text:
+        draft.text = text
+        if entities:
+            draft.entities = [
+                {
+                    "type": e.type,
+                    "offset": e.offset,
+                    "length": e.length,
+                    "url": e.url,
+                    "user": e.user.id if e.user else None,
+                    "language": e.language,
+                    "custom_emoji_id": e.custom_emoji_id,
+                }
+                for e in entities
+            ]
+        else:
+            draft.entities = None
+    elif not draft.text:
+        draft.text = "📢 Текст отсутствует"
+
+    # Извлекаем медиа
+    if message.photo:
+        draft.content_type = "photo"
+        draft.media = message.photo[-1].file_id
+    elif message.video:
+        draft.content_type = "video"
+        draft.media = message.video.file_id
+    elif message.video_note:
+        draft.content_type = "video_note"
+        draft.media = message.video_note.file_id
+    # Если это просто текст — оставляем текущий тип (или ставим text)
+    elif message.text:
+        draft.content_type = "text"
+        draft.media = None
+    # Если ничего не подошло (например, стикер) — сообщим об ошибке
+    else:
+        await message.answer("❌ Неподдерживаемый тип сообщения. Отправьте текст, фото, видео или видео-кружок.")
+        return
+
+    # Сообщаем об успехе и показываем предпросмотр
+    preview_text = await _generate_preview_text(draft)
+    await message.answer(
+        f"✅ Данные из пересланного сообщения сохранены!\n\n{preview_text}",
+        reply_markup=broadcast_constructor_kb(draft)
+    )
+    await state.clear()
+
 
 
 @router.callback_query(F.data == "broadcast_main")
 async def broadcast_main(callback: CallbackQuery):
     """Главное меню рассылок"""
     await callback.message.edit_text(
-        "📊 <b>Управление рассылками</b>\n\n"
+        "📊 Управление рассылками\n\n"
         "Выберите действие:",
         reply_markup=broadcast_main_kb()
     )
 
 
 @router.callback_query(F.data == "broadcast_constructor")
-async def broadcast_constructor(callback: CallbackQuery, state: FSMContext):
+async def broadcast_constructor(callback: CallbackQuery):
     """Конструктор рассылки"""
     user_id = callback.from_user.id
 
@@ -47,7 +132,7 @@ async def broadcast_constructor(callback: CallbackQuery, state: FSMContext):
     preview_text = await _generate_preview_text(draft)
 
     await callback.message.edit_text(
-        f"🎨 <b>Конструктор рассылки</b>\n\n{preview_text}",
+        f"🎨 Конструктор рассылки\n\n{preview_text}",
         reply_markup=broadcast_constructor_kb(draft),
         # parse_mode="HTML"
     )
@@ -66,7 +151,7 @@ async def edit_component(callback: CallbackQuery, state: FSMContext):
     if callback.data == "edit_text":
         await state.set_state(BroadcastStates.editing_text)
         await callback.message.edit_text(
-            "✏️ <b>Редактирование текста</b>\n\n"
+            "✏️ Редактирование текста\n\n"
             "Отправьте новый текст рассылки:",
             reply_markup=broadcast_constructor_kb(draft, is_editing=True)
         )
@@ -74,14 +159,14 @@ async def edit_component(callback: CallbackQuery, state: FSMContext):
     elif callback.data == "edit_media":
         await state.set_state(BroadcastStates.editing_media)
         await callback.message.edit_text(
-            "🖼️ <b>Редактирование медиа</b>\n\n"
+            "🖼️ Редактирование медиа\n\n"
             "Отправьте фото или видео:",
             reply_markup=broadcast_constructor_kb(draft, is_editing=True)
         )
 
     elif callback.data == "edit_buttons":
         await callback.message.edit_text(
-            "🔘 <b>Управление кнопками</b>",
+            "🔘 Управление кнопками",
             reply_markup=buttons_management_kb()
         )
 
@@ -95,15 +180,7 @@ async def process_text_edit(message: Message, state: FSMContext):
         return
 
     draft = BroadcastService.current_editing[user_id]
-    print(message.entities)
 
-    # Сохраняем как JSON с entities
-    # message_json, parse_mode = TelegramFormatter.prepare_message_text(
-    #     message.text or "",
-    #     message.entities or []
-    # )
-    #
-    # draft.text = message_json
     draft.text = message.text or ""
 
     if message.entities:
@@ -122,21 +199,6 @@ async def process_text_edit(message: Message, state: FSMContext):
     else:
         draft.entities = None
 
-    # Для предпросмотра - используем встроенный метод aiogram
-    # if message.entities:
-    #     # Просто копируем сообщение для предпросмотра
-    #     await message.copy_to(
-    #         chat_id=message.chat.id,
-    #         caption=f"✅ <b>Текст обновлен!</b>\n\n",
-    #         reply_markup=broadcast_constructor_kb(draft),
-    #         parse_mode="HTML"
-    #     )
-    # else:
-    #     await message.answer(
-    #         f"✅ <b>Текст обновлен!</b>\n\n{message.text}",
-    #         reply_markup=broadcast_constructor_kb(draft),
-    #         parse_mode="HTML"
-    #     )
 
 
     entities = None
@@ -163,11 +225,7 @@ async def process_media_edit(message: Message, state: FSMContext):
 
     # Обрабатываем подпись если есть
     if message.caption:
-        # html_text, parse_mode = TelegramFormatter.prepare_caption_text(
-        #     message.caption,
-        #     message.caption_entities or []
-        # )
-        # draft.text = html_text
+
         draft.text = message.caption
 
         if message.caption_entities:
@@ -202,7 +260,7 @@ async def process_media_edit(message: Message, state: FSMContext):
 
     preview_text = await _generate_preview_text(draft)
     await message.answer(
-        f"✅ <b>Медиа обновлено!</b>\n\n{preview_text}",
+        f"✅ Медиа обновлено!\n\n{preview_text}",
         reply_markup=broadcast_constructor_kb(draft),
         # parse_mode="HTML"
     )
@@ -228,7 +286,7 @@ async def set_content_type(callback: CallbackQuery):
 
     preview_text = await _generate_preview_text(draft)
     await callback.message.edit_text(
-        f"✅ <b>Тип контента изменен!</b>\n\n{preview_text}",
+        f"✅ Тип контента изменен!\n\n{preview_text}",
         reply_markup=broadcast_constructor_kb(draft),
         # parse_mode="HTML"
     )
@@ -251,33 +309,53 @@ async def preview_broadcast(callback: CallbackQuery):
 
     try:
         # Обработка кнопок
+        # kb = None
+        # if draft.buttons:
+        #     import json
+        #     try:
+        #         buttons_data = json.loads(str(draft.buttons))
+        #         if buttons_data and isinstance(buttons_data, list):
+        #             # Создаем кнопки с проверкой структуры
+        #             keyboard_rows = []
+        #             for button_data in buttons_data:
+        #                 try:
+        #                     if 'text' in button_data:
+        #                         if 'url' in button_data:
+        #                             button = InlineKeyboardButton(
+        #                                 text=button_data['text'],
+        #                                 url=button_data['url']
+        #                             )
+        #                         elif 'web_app' in button_data:
+        #                             button = InlineKeyboardButton(
+        #                                 text=button_data['text'],
+        #                                 web_app=button_data['web_app']
+        #                             )
+        #                         else:
+        #                             continue
+        #                         keyboard_rows.append([button])
+        #                 except (KeyError, TypeError):
+        #                     continue
+        #
+        #             if keyboard_rows:
+        #                 kb = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+        #     except (json.JSONDecodeError, TypeError, ValueError) as e:
+        #         print(f"Ошибка парсинга кнопок: {e}")
+        # Обработка кнопок
         kb = None
         if draft.buttons:
             import json
             try:
                 buttons_data = json.loads(str(draft.buttons))
                 if buttons_data and isinstance(buttons_data, list):
-                    # Создаем кнопки с проверкой структуры
                     keyboard_rows = []
                     for button_data in buttons_data:
                         try:
-                            if 'text' in button_data:
-                                if 'url' in button_data:
-                                    button = InlineKeyboardButton(
-                                        text=button_data['text'],
-                                        url=button_data['url']
-                                    )
-                                elif 'web_app' in button_data:
-                                    button = InlineKeyboardButton(
-                                        text=button_data['text'],
-                                        web_app=button_data['web_app']
-                                    )
-                                else:
-                                    continue
-                                keyboard_rows.append([button])
-                        except (KeyError, TypeError):
+                            # Передаем все данные из словаря в конструктор InlineKeyboardButton
+                            button = InlineKeyboardButton(**button_data)
+                            keyboard_rows.append([button])
+                        except Exception as e:
+                            print(f"Ошибка создания кнопки: {e}")
                             continue
-
                     if keyboard_rows:
                         kb = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
             except (json.JSONDecodeError, TypeError, ValueError) as e:
@@ -294,11 +372,7 @@ async def preview_broadcast(callback: CallbackQuery):
 
         # Отправляем предпросмотр в зависимости от типа контента
         if content_type == "text":
-            # await callback.message.answer(
-            #     text,
-            #     reply_markup=kb,
-            #     # parse_mode="HTML"
-            # )
+
             await callback.message.answer(
                 text,
                 entities=entities,
@@ -310,12 +384,7 @@ async def preview_broadcast(callback: CallbackQuery):
             if not media:
                 await callback.answer("Фото для предпросмотра отсутствует!")
                 return
-            # await callback.message.answer_photo(
-            #     media,
-            #     caption=text if text else None,
-            #     reply_markup=kb,
-            #     # parse_mode="HTML"
-            # )
+
             await callback.message.answer_photo(
                 media,
                 caption=text if text else None,
@@ -343,11 +412,7 @@ async def preview_broadcast(callback: CallbackQuery):
                 return
             await callback.message.answer_video_note(media)
             if text:
-                # await callback.message.answer(
-                #     text,
-                #     reply_markup=kb,
-                #     # parse_mode="HTML"
-                # )
+
                 await callback.message.answer(
                     text,
                     entities=entities,
@@ -382,181 +447,508 @@ async def _generate_preview_text(draft) -> str:
 
     # Собираем текст предпросмотра
     preview_parts = [
-        f"{type_icons.get(content_type, '📝')} <b>Тип:</b> {content_type}",
-        f"📄 <b>Текст:</b> {text_preview}"
+        f"{type_icons.get(content_type, '📝')} Тип: {content_type}",
+        f"📄 Текст: {text_preview}"
     ]
 
     if draft.media:
-        preview_parts.append("🖼️ <b>Медиа:</b> ✅")
+        preview_parts.append("🖼️ Медиа: ✅")
 
-    # Подсчет кнопок
-    buttons_count = 0
-    if draft.buttons:
-        import json
-        try:
-            buttons_data = json.loads(str(draft.buttons))
-            if isinstance(buttons_data, list):
-                buttons_count = len(buttons_data)
-        except (json.JSONDecodeError, TypeError, ValueError):
-            pass
-
-    preview_parts.append(f"🔘 <b>Кнопки:</b> {buttons_count} шт.")
 
     return "\n".join(preview_parts)
+#
+# @router.callback_query(F.data == "add_button")
+# async def add_button_start(callback: CallbackQuery):
+#     """Начало добавления кнопки"""
+#     await callback.message.edit_text(
+#         "🔘 Добавление кнопки\n\n"
+#         "Выберите тип кнопки:",
+#         reply_markup=button_type_kb()
+#     )
+#
+#
+# @router.callback_query(F.data == "button_type_url")
+# async def add_url_button(callback: CallbackQuery, state: FSMContext):
+#     """Добавление URL-кнопки"""
+#     await state.set_state(BroadcastStates.editing_buttons)
+#     await state.update_data(button_type="url")
+#
+#     await callback.message.edit_text(
+#         "🔗 <b>Добавление URL-кнопки</b>\n\n"
+#         "Отправьте текст кнопки и URL через запятую:\n"
+#         "Пример: <code>Мой сайт, https://example.com</code>",
+#         parse_mode="HTML"
+#     )
+#
+#
+# @router.callback_query(F.data == "button_type_webapp")
+# async def add_webapp_button(callback: CallbackQuery, state: FSMContext):
+#     """Добавление Web App кнопки"""
+#     await state.set_state(BroadcastStates.editing_buttons)
+#     await state.update_data(button_type="web_app")
+#
+#     await callback.message.edit_text(
+#         "⚡ <b>Добавление Web App кнопки</b>\n\n"
+#         "Отправьте текст кнопки и URL Web App через запятую:\n"
+#         "Пример: <code>Открыть приложение, https://example.com</code>",
+#         parse_mode="HTML"
+#     )
+#
+#
+# @router.message(BroadcastStates.editing_buttons)
+# async def process_button_add(message: Message, state: FSMContext):
+#     """Обработка добавления кнопки"""
+#     user_id = message.from_user.id
+#     if user_id not in BroadcastService.current_editing:
+#         await message.answer("Черновик не найден!")
+#         return
+#
+#     data = await state.get_data()
+#     button_type = data.get("button_type", "url")
+#
+#     try:
+#         parts = message.text.split(',', 1)
+#         if len(parts) != 2:
+#             raise ValueError("Неверный формат")
+#
+#         text = parts[0].strip()
+#         url = parts[1].strip()
+#
+#         draft = BroadcastService.current_editing[user_id]
+#
+#         if button_type == "url":
+#             new_button = {"text": text, "url": url}
+#         else:  # web_app
+#             new_button = {"text": text, "web_app": {"url": url}}
+#
+#         # Сохраняем кнопки как JSON строку
+#         import json
+#         current_buttons = []
+#         if draft.buttons:
+#             try:
+#                 current_buttons = json.loads(str(draft.buttons))  # Явное преобразование
+#                 if not isinstance(current_buttons, list):
+#                     current_buttons = []
+#             except (json.JSONDecodeError, TypeError, ValueError):
+#                 current_buttons = []
+#
+#         current_buttons.append(new_button)
+#         draft.buttons = json.dumps(current_buttons)  # Сохраняем как JSON строку
+#
+#         await message.answer(
+#             f"✅ <b>Кнопка добавлена!</b>\n\n"
+#             f"Текст: {text}\n"
+#             f"URL: {url}\n\n"
+#             f"Всего кнопок: {len(current_buttons)}",
+#             reply_markup=buttons_management_kb()
+#         )
+#
+#     except Exception as e:
+#         await message.answer(
+#             "❌ <b>Ошибка формата!</b>\n\n"
+#             "Пожалуйста, используйте формат:\n"
+#             "<code>Текст кнопки, https://example.com</code>",
+#             parse_mode="HTML"
+#         )
+#
+#     await state.clear()
+#
+#
+# @router.callback_query(F.data == "edit_buttons_list")
+# async def edit_buttons_list(callback: CallbackQuery):
+#     """Редактирование списка кнопок"""
+#     user_id = callback.from_user.id
+#     if user_id not in BroadcastService.current_editing:
+#         await callback.answer("Черновик не найден!")
+#         return
+#
+#     draft = BroadcastService.current_editing[user_id]
+#
+#     # Распарсим кнопки из JSON
+#     buttons_list = []
+#     if draft.buttons:
+#         import json
+#         try:
+#             buttons_list = json.loads(str(draft.buttons))  # Явное преобразование в str
+#             if not isinstance(buttons_list, list):
+#                 buttons_list = []
+#         except (json.JSONDecodeError, TypeError, ValueError):
+#             buttons_list = []
+#
+#     if not buttons_list:
+#         await callback.answer("Нет кнопок для редактирования!")
+#         return
+#
+#     # Генерация текста с кнопками
+#     buttons_text = "\n".join([
+#         f"{i + 1}. {btn['text']} - {btn.get('url', btn.get('web_app', {}).get('url', 'N/A'))}"
+#         for i, btn in enumerate(buttons_list)
+#     ])
+#
+#     # Генерация клавиатуры для удаления
+#     keyboard = InlineKeyboardMarkup(inline_keyboard=[
+#         *[[InlineKeyboardButton(text=f"❌ Удалить {i + 1}", callback_data=f"remove_button_{i}")]
+#           for i in range(len(buttons_list))],
+#         [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_buttons_management")]
+#     ])
+#
+#     await callback.message.edit_text(
+#         f"🔘 Редактирование кнопок\n\n{buttons_text}",
+#         reply_markup=keyboard
+#     )
+#
+#
+# @router.callback_query(F.data.startswith("remove_button_"))
+# async def remove_button(callback: CallbackQuery):
+#     """Удаление кнопки"""
+#     user_id = callback.from_user.id
+#     if user_id not in BroadcastService.current_editing:
+#         await callback.answer("Черновик не найден!")
+#         return
+#
+#     button_index = int(callback.data.replace("remove_button_", ""))
+#     draft = BroadcastService.current_editing[user_id]
+#
+#     # Распарсим текущие кнопки
+#     import json
+#     current_buttons = []
+#     if draft.buttons:
+#         try:
+#             current_buttons = json.loads(str(draft.buttons))
+#             if not isinstance(current_buttons, list):
+#                 current_buttons = []
+#         except (json.JSONDecodeError, TypeError, ValueError):
+#             current_buttons = []
+#
+#     # Удаляем кнопку по индексу
+#     if 0 <= button_index < len(current_buttons):
+#         removed_button = current_buttons.pop(button_index)
+#
+#         # Сохраняем обновленный список
+#         draft.buttons = json.dumps(current_buttons)
+#
+#         await callback.answer(f"Кнопка '{removed_button['text']}' удалена!")
+#
+#         # Обновляем список кнопок
+#         await edit_buttons_list(callback)
+#     else:
+#         await callback.answer("Кнопка не найдена!")
+#
+#
+# @router.callback_query(F.data == "clear_buttons")
+# async def clear_buttons(callback: CallbackQuery):
+#     """Очистка всех кнопок"""
+#     user_id = callback.from_user.id
+#     if user_id not in BroadcastService.current_editing:
+#         await callback.answer("Черновик не найден!")
+#         return
+#
+#     draft = BroadcastService.current_editing[user_id]
+#
+#     # Просто устанавливаем пустой JSON массив
+#     import json
+#     draft.buttons = json.dumps([])
+#
+#     await callback.message.edit_text(
+#         "✅ Все кнопки очищены!",
+#         reply_markup=buttons_management_kb()
+#     )
 
 @router.callback_query(F.data == "add_button")
-async def add_button_start(callback: CallbackQuery):
-    """Начало добавления кнопки"""
-    await callback.message.edit_text(
-        "🔘 <b>Добавление кнопки</b>\n\n"
-        "Выберите тип кнопки:",
-        reply_markup=button_type_kb()
-    )
-
-
-@router.callback_query(F.data == "button_type_url")
-async def add_url_button(callback: CallbackQuery, state: FSMContext):
-    """Добавление URL-кнопки"""
-    await state.set_state(BroadcastStates.editing_buttons)
-    await state.update_data(button_type="url")
-
-    await callback.message.edit_text(
-        "🔗 <b>Добавление URL-кнопки</b>\n\n"
-        "Отправьте текст кнопки и URL через запятую:\n"
-        "Пример: <code>Мой сайт, https://example.com</code>",
-        parse_mode="HTML"
-    )
-
-
-@router.callback_query(F.data == "button_type_webapp")
-async def add_webapp_button(callback: CallbackQuery, state: FSMContext):
-    """Добавление Web App кнопки"""
-    await state.set_state(BroadcastStates.editing_buttons)
-    await state.update_data(button_type="web_app")
-
-    await callback.message.edit_text(
-        "⚡ <b>Добавление Web App кнопки</b>\n\n"
-        "Отправьте текст кнопки и URL Web App через запятую:\n"
-        "Пример: <code>Открыть приложение, https://example.com</code>",
-        parse_mode="HTML"
-    )
-
-
-@router.message(BroadcastStates.editing_buttons)
-async def process_button_add(message: Message, state: FSMContext):
-    """Обработка добавления кнопки"""
-    user_id = message.from_user.id
-    if user_id not in BroadcastService.current_editing:
-        await message.answer("Черновик не найден!")
-        return
-
-    data = await state.get_data()
-    button_type = data.get("button_type", "url")
-
-    try:
-        parts = message.text.split(',', 1)
-        if len(parts) != 2:
-            raise ValueError("Неверный формат")
-
-        text = parts[0].strip()
-        url = parts[1].strip()
-
-        draft = BroadcastService.current_editing[user_id]
-
-        if button_type == "url":
-            new_button = {"text": text, "url": url}
-        else:  # web_app
-            new_button = {"text": text, "web_app": {"url": url}}
-
-        # Сохраняем кнопки как JSON строку
-        import json
-        current_buttons = []
-        if draft.buttons:
-            try:
-                current_buttons = json.loads(str(draft.buttons))  # Явное преобразование
-                if not isinstance(current_buttons, list):
-                    current_buttons = []
-            except (json.JSONDecodeError, TypeError, ValueError):
-                current_buttons = []
-
-        current_buttons.append(new_button)
-        draft.buttons = json.dumps(current_buttons)  # Сохраняем как JSON строку
-
-        await message.answer(
-            f"✅ <b>Кнопка добавлена!</b>\n\n"
-            f"Текст: {text}\n"
-            f"URL: {url}\n\n"
-            f"Всего кнопок: {len(current_buttons)}",
-            reply_markup=buttons_management_kb()
-        )
-
-    except Exception as e:
-        await message.answer(
-            "❌ <b>Ошибка формата!</b>\n\n"
-            "Пожалуйста, используйте формат:\n"
-            "<code>Текст кнопки, https://example.com</code>",
-            parse_mode="HTML"
-        )
-
+async def add_button_start(callback: CallbackQuery, state: FSMContext):
+    """Начало добавления кнопки (сразу запрашиваем текст)"""
     await state.clear()
-
-
-@router.callback_query(F.data == "edit_buttons_list")
-async def edit_buttons_list(callback: CallbackQuery):
-    """Редактирование списка кнопок"""
-    user_id = callback.from_user.id
-    if user_id not in BroadcastService.current_editing:
-        await callback.answer("Черновик не найден!")
-        return
-
-    draft = BroadcastService.current_editing[user_id]
-
-    # Распарсим кнопки из JSON
-    buttons_list = []
-    if draft.buttons:
-        import json
-        try:
-            buttons_list = json.loads(str(draft.buttons))  # Явное преобразование в str
-            if not isinstance(buttons_list, list):
-                buttons_list = []
-        except (json.JSONDecodeError, TypeError, ValueError):
-            buttons_list = []
-
-    if not buttons_list:
-        await callback.answer("Нет кнопок для редактирования!")
-        return
-
-    # Генерация текста с кнопками
-    buttons_text = "\n".join([
-        f"{i + 1}. {btn['text']} - {btn.get('url', btn.get('web_app', {}).get('url', 'N/A'))}"
-        for i, btn in enumerate(buttons_list)
-    ])
-
-    # Генерация клавиатуры для удаления
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        *[[InlineKeyboardButton(text=f"❌ Удалить {i + 1}", callback_data=f"remove_button_{i}")]
-          for i in range(len(buttons_list))],
-        [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_buttons_management")]
-    ])
-
+    await state.set_state(BroadcastStates.adding_button_text)
     await callback.message.edit_text(
-        f"🔘 <b>Редактирование кнопок</b>\n\n{buttons_text}",
-        reply_markup=keyboard
+        "🔘 Добавление кнопки\n\n"
+        "Введите текст кнопки:"
     )
 
 
-@router.callback_query(F.data.startswith("remove_button_"))
-async def remove_button(callback: CallbackQuery):
-    """Удаление кнопки"""
+@router.message(BroadcastStates.adding_button_text)
+async def process_button_text(message: Message, state: FSMContext):
+    """Обработка текста кнопки"""
+    text = message.text.strip()
+    if not text:
+        await message.answer("Текст не может быть пустым. Введите текст кнопки:")
+        return
+    await state.update_data(button_text=text)
+
+    # Предлагаем выбор способа создания ссылки
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✏️ Ввести URL вручную", callback_data="webapp_manual_url")],
+        [InlineKeyboardButton(text="🎯 Создать для RocketxAppBot", callback_data="webapp_bot_params")],
+        [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_add_button")]
+    ])
+    await message.answer(
+        "Выберите способ указания ссылки для Web App:",
+        reply_markup=kb
+    )
+    # Оставляем состояние — дальше обработаем callback
+
+
+@router.callback_query(F.data == "webapp_manual_url")
+async def webapp_manual_url(callback: CallbackQuery, state: FSMContext):
+    """Ручной ввод URL"""
+    await state.set_state(BroadcastStates.adding_button_url)
+    await callback.message.edit_text("Введите URL (начинается с http:// или https://):")
+
+
+@router.callback_query(F.data == "webapp_bot_params")
+async def webapp_bot_params(callback: CallbackQuery, state: FSMContext):
+    """Создание ссылки через параметры RocketxAppBot"""
+    await state.set_state(BroadcastStates.adding_button_page)
+
+    # Клавиатура со страницами
+    pages = [
+        ("cases", "📦 Cases"),
+        ("staking", "📈 Staking"),
+        ("plinko", "🎰 Plinko"),
+        ("spin", "🎡 Spin"),
+        ("profile", "👤 Profile"),
+        ("games", "🎮 Games"),
+        ("lottery", "🎲 Lottery"),
+        ("upgrade", "⬆️ Upgrade"),
+        ("friends", "👥 Friends"),
+        ("none", "🚫 Без страницы (просто запуск)"),
+    ]
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=name, callback_data=f"page_{page}")] for page, name in pages
+    ])
+    await callback.message.edit_text(
+        "Выберите страницу для открытия в приложении:",
+        reply_markup=kb
+    )
+
+
+@router.callback_query(F.data.startswith("page_"), BroadcastStates.adding_button_page)
+async def process_page_selection(callback: CallbackQuery, state: FSMContext):
+    """Выбрана страница для Web App"""
+    page = callback.data.replace("page_", "")
+    if page == "none":
+        page = None
+    await state.update_data(webapp_page=page)
+
+    # if page == "cases":
+    #     await state.set_state(BroadcastStates.adding_button_case)
+    #
+    #     # Формируем клавиатуру с кейсами (только free и stars)
+    #     buttons = []
+    #     for case_id, info in CASES_DATA.items():
+    #         if info['cost_type'] in ('free', 'stars'):
+    #             if info['cost_type'] == 'free':
+    #                 cost_display = "Бесплатно"
+    #             else:
+    #                 cost_display = f"{info['cost_value']} ⭐"
+    #             buttons.append(
+    #                 InlineKeyboardButton(
+    #                     text=f"{info['name']} - {cost_display}",
+    #                     callback_data=f"case_{case_id}"
+    #                 )
+    #             )
+    #     # Разбивка по 2
+    #     rows = [buttons[i:i+2] for i in range(0, len(buttons), 2)]
+    #     rows.append([InlineKeyboardButton(text="🚫 Без кейса", callback_data="case_none")])
+    #     kb = InlineKeyboardMarkup(inline_keyboard=rows)
+    #     await callback.message.edit_text(
+    #         "Выберите кейс:",
+    #         reply_markup=kb
+    #     )
+    if page == "cases":
+        await state.set_state(BroadcastStates.adding_button_case)
+
+        buttons = []
+        for case_id, info in CASES_DATA.items():
+            if info['cost_type'] in ('free', 'stars'):
+                if info['cost_type'] == 'free':
+                    cost_display = "Бесплатно"
+                else:
+                    cost_display = f"{info['cost_value']} ⭐"
+
+                # Получаем ID эмодзи для данного кейса (если есть)
+                emoji_id = CASE_EMOJIS.get(case_id)
+
+                # Создаём кнопку с учётом наличия эмодзи
+                button_kwargs = {
+                    "text": f"{info['name']} - {cost_display}",
+                    "callback_data": f"case_{case_id}"
+                }
+                if emoji_id:
+                    button_kwargs["icon_custom_emoji_id"] = emoji_id
+
+                button = InlineKeyboardButton(**button_kwargs)
+                buttons.append(button)
+
+        # Разбивка по 2
+        rows = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
+        rows.append([InlineKeyboardButton(text="🚫 Без кейса", callback_data="case_none")])
+        kb = InlineKeyboardMarkup(inline_keyboard=rows)
+        await callback.message.edit_text("Выберите кейс:", reply_markup=kb)
+    else:
+        # Для других страниц сразу формируем URL
+        await build_webapp_url_and_next(state, callback)
+
+
+@router.callback_query(F.data.startswith("case_"), BroadcastStates.adding_button_case)
+async def process_case_selection(callback: CallbackQuery, state: FSMContext):
+    """Выбран конкретный кейс"""
+    case = callback.data.replace("case_", "")
+    if case == "none":
+        case = None
+    await state.update_data(webapp_case=case)
+    await build_webapp_url_and_next(state, callback)
+
+
+async def build_webapp_url_and_next(state: FSMContext, callback: CallbackQuery):
+    """Формирует URL для RocketxAppBot и переходит к выбору стиля"""
+    data = await state.get_data()
+    page = data.get('webapp_page')
+    case = data.get('webapp_case')
+    base_url = "https://t.me/RocketxAppBot/rocketapp?startapp="
+    if page:
+        url = base_url + f"page__{page}"
+        if page == "cases" and case:
+            url += f"--{case}"
+    else:
+        url = base_url  # без параметров
+    await state.update_data(button_url=url)
+    await go_to_style_selection(callback, state)
+
+
+@router.message(BroadcastStates.adding_button_url)
+async def process_button_url(message: Message, state: FSMContext):
+    """Обработка введённого URL"""
+    url = message.text.strip()
+    if not url.startswith(('http://', 'https://')):
+        await message.answer("URL должен начинаться с http:// или https://. Попробуйте снова:")
+        return
+    await state.update_data(button_url=url)
+    await go_to_style_selection(message, state)
+
+
+async def go_to_style_selection(target, state: FSMContext):
+    """Переход к выбору стиля (общая функция)"""
+    await state.set_state(BroadcastStates.adding_button_style)
+    style_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔵 Primary", callback_data="style_primary")],
+        [InlineKeyboardButton(text="🟢 Success", callback_data="style_success")],
+        [InlineKeyboardButton(text="🔴 Danger", callback_data="style_danger")],
+        [InlineKeyboardButton(text="⚪ Без стиля", callback_data="style_none")]
+    ])
+    if isinstance(target, CallbackQuery):
+        await target.message.edit_text(
+            "Выберите стиль кнопки (или пропустите):",
+            reply_markup=style_kb
+        )
+    else:
+        await target.answer(
+            "Выберите стиль кнопки (или пропустите):",
+            reply_markup=style_kb
+        )
+
+
+@router.callback_query(F.data.startswith("style_"), BroadcastStates.adding_button_style)
+async def process_style_selection(callback: CallbackQuery, state: FSMContext):
+    """Выбран стиль кнопки"""
+    style = callback.data.replace("style_", "")
+    if style == "none":
+        style = None
+    await state.update_data(button_style=style)
+    await state.set_state(BroadcastStates.adding_button_emoji)
+    await callback.message.edit_text(
+        "Отправьте одно кастомное эмодзи (или отправьте /skip чтобы пропустить):"
+    )
+
+
+@router.message(BroadcastStates.adding_button_emoji)
+async def process_button_emoji(message: Message, state: FSMContext):
+    """Обработка ввода кастомного эмодзи (извлекаем ID)"""
+    # Проверка на /skip
+    if message.text and message.text.strip() == "/skip":
+        await state.update_data(button_emoji=None)
+        await show_button_confirmation(message, state)
+        return
+
+    # Ищем custom_emoji в entities
+    if message.entities:
+        for entity in message.entities:
+            if entity.type == "custom_emoji" and entity.custom_emoji_id:
+                emoji_id = entity.custom_emoji_id
+                await state.update_data(button_emoji=emoji_id)
+                await show_button_confirmation(message, state)
+                return
+
+    # Если не нашли
+    await message.answer(
+        "❌ Не удалось найти кастомный эмодзи в сообщении.\n"
+        "Пожалуйста, отправьте одно сообщение с кастомным эмодзи (или /skip чтобы пропустить)."
+    )
+    # Остаёмся в том же состоянии
+
+
+@router.message(BroadcastStates.adding_button_emoji, F.text == "/skip")
+async def skip_emoji(message: Message, state: FSMContext):
+    """Пропуск ввода эмодзи"""
+    await state.update_data(button_emoji=None)
+    await show_button_confirmation(message, state)
+
+
+async def show_button_confirmation(message: Message, state: FSMContext):
+    """Показать предпросмотр и запросить подтверждение"""
+    data = await state.get_data()
+    # Обязательные поля
+    text = data.get('button_text')
+    url = data.get('button_url')
+
+    if not text or not url:
+        await message.answer("Ошибка: не хватает данных для создания кнопки. Начните заново.")
+        await state.clear()
+        return
+
+    style = data.get('button_style')
+    emoji = data.get('button_emoji')
+
+    preview = f"Текст: {text}\nURL: {url}"
+    if style:
+        preview += f"\nСтиль: {style}"
+    if emoji:
+        preview += f"\nEmoji ID: {emoji}"
+
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Сохранить", callback_data="confirm_add_button", style="success")],
+        [InlineKeyboardButton(text="🔄 Заново", callback_data="restart_add_button", style="primary")],
+        [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_add_button", style="danger")]
+    ])
+    await message.answer(
+        f"Проверьте параметры кнопки:\n\n{preview}\n\nВсё верно?",
+        reply_markup=kb
+    )
+    await state.set_state(BroadcastStates.adding_button_confirm)
+
+
+@router.callback_query(F.data == "confirm_add_button", BroadcastStates.adding_button_confirm)
+async def confirm_add_button(callback: CallbackQuery, state: FSMContext):
+    """Подтверждение и сохранение кнопки"""
     user_id = callback.from_user.id
     if user_id not in BroadcastService.current_editing:
         await callback.answer("Черновик не найден!")
+        await state.clear()
         return
 
-    button_index = int(callback.data.replace("remove_button_", ""))
     draft = BroadcastService.current_editing[user_id]
+    data = await state.get_data()
 
-    # Распарсим текущие кнопки
+    # Формируем объект кнопки (всегда web_app)
+    button = {
+        "text": data['button_text'],
+        "url": data['button_url']  # просто строка
+    }
+    if data.get('button_style'):
+        button['style'] = data['button_style']
+    if data.get('button_emoji'):
+        button['icon_custom_emoji_id'] = data['button_emoji']
+
+    # Сохраняем в черновик
     import json
     current_buttons = []
     if draft.buttons:
@@ -564,42 +956,40 @@ async def remove_button(callback: CallbackQuery):
             current_buttons = json.loads(str(draft.buttons))
             if not isinstance(current_buttons, list):
                 current_buttons = []
-        except (json.JSONDecodeError, TypeError, ValueError):
+        except Exception:
             current_buttons = []
 
-    # Удаляем кнопку по индексу
-    if 0 <= button_index < len(current_buttons):
-        removed_button = current_buttons.pop(button_index)
-
-        # Сохраняем обновленный список
-        draft.buttons = json.dumps(current_buttons)
-
-        await callback.answer(f"Кнопка '{removed_button['text']}' удалена!")
-
-        # Обновляем список кнопок
-        await edit_buttons_list(callback)
-    else:
-        await callback.answer("Кнопка не найдена!")
-
-
-@router.callback_query(F.data == "clear_buttons")
-async def clear_buttons(callback: CallbackQuery):
-    """Очистка всех кнопок"""
-    user_id = callback.from_user.id
-    if user_id not in BroadcastService.current_editing:
-        await callback.answer("Черновик не найден!")
-        return
-
-    draft = BroadcastService.current_editing[user_id]
-
-    # Просто устанавливаем пустой JSON массив
-    import json
-    draft.buttons = json.dumps([])
+    current_buttons.append(button)
+    draft.buttons = json.dumps(current_buttons)
 
     await callback.message.edit_text(
-        "✅ <b>Все кнопки очищены!</b>",
+        f"✅ Кнопка добавлена!\n\nВсего кнопок: {len(current_buttons)}",
         reply_markup=buttons_management_kb()
     )
+    await state.clear()
+
+
+@router.callback_query(F.data == "restart_add_button")
+async def restart_add_button(callback: CallbackQuery, state: FSMContext):
+    """Начать добавление заново"""
+    await add_button_start(callback, state)
+
+
+@router.callback_query(F.data == "cancel_add_button")
+async def cancel_add_button(callback: CallbackQuery, state: FSMContext):
+    """Отмена добавления кнопки"""
+    await state.clear()
+    await callback.message.edit_text(
+        "Добавление кнопки отменено.",
+        reply_markup=buttons_management_kb()
+    )
+
+
+@router.callback_query(F.data == "restart_add_button")
+async def restart_add_button(callback: CallbackQuery, state: FSMContext):
+    """Начать добавление заново"""
+    await state.clear()
+    await add_button_start(callback, state)
 
 
 @router.callback_query(F.data == "start_broadcast")
@@ -625,15 +1015,26 @@ async def start_broadcast(callback: CallbackQuery):
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
     confirm_kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ Да, запустить", callback_data="confirm_broadcast")],
-        [InlineKeyboardButton(text="❌ Отменить", callback_data="back_constructor")]
-    ])
+            [
+                InlineKeyboardButton(
+                    text="✅ Да, запустить",
+                    callback_data="confirm_broadcast",
+                    style="success"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="❌ Отменить",
+                    callback_data="back_constructor",
+                    style="danger"
+                )
+            ],
+        ])
+
 
     await callback.message.edit_text(
-        "🚀 <b>Подтверждение запуска рассылки</b>\n\n"
-        "Вы уверены, что хотите запустить рассылку?\n"
-        f"Тип: {draft.content_type}\n"
-        f"Кнопок: {len(draft.buttons)}",
+        "🚀 Подтверждение запуска рассылки\n\n"
+        "Вы уверены, что хотите запустить рассылку?",
         reply_markup=confirm_kb
     )
 
@@ -674,7 +1075,7 @@ async def confirm_broadcast(callback: CallbackQuery, bot: Bot):
     BroadcastService.current_editing.pop(user_id, None)
 
     await callback.message.edit_text(
-        "✅ <b>Рассылка запущена!</b>\n\n"
+        "✅ Рассылка запущена!\n\n"
         f"Получателей: {len(users)}\n"
         f"ID рассылки: #{draft.id}\n\n"
         "Отслеживать прогресс можно в разделе 'Активные рассылки'",
@@ -701,7 +1102,7 @@ async def broadcast_active_list(callback: CallbackQuery):
 
     if not tasks:
         await callback.message.edit_text(
-            "📊 <b>Активные рассылки</b>\n\n"
+            "📊 Активные рассылки\n\n"
             "Нет активных рассылок.",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="⬅️ Назад", callback_data="broadcast_main")]
@@ -710,10 +1111,49 @@ async def broadcast_active_list(callback: CallbackQuery):
         return
 
     await callback.message.edit_text(
-        f"📊 <b>Активные рассылки</b>\n\nНайдено: {len(tasks)}",
+        f"📊 Активные рассылки\n\nНайдено: {len(tasks)}",
         reply_markup=broadcast_active_kb(tasks)
     )
 
+#
+# @router.callback_query(F.data.startswith("broadcast_info_"))
+# async def broadcast_info(callback: CallbackQuery):
+#     """Информация о конкретной рассылке"""
+#     task_id = int(callback.data.replace("broadcast_info_", ""))
+#
+#     from bot.models.broadcast_task import BroadcastTask
+#     from sqlalchemy import select
+#
+#     async with SessionLocal() as session:
+#         result = await session.execute(select(BroadcastTask).where(BroadcastTask.id == task_id))
+#         task = result.scalar_one_or_none()
+#
+#     if not task:
+#         await callback.answer("Рассылка не найдена!")
+#         return
+#
+#     status_icons = {
+#         "pending": "⏳", "sending": "🟢",
+#         "stopped": "🛑", "done": "✅", "draft": "📝"
+#     }
+#
+#     progress = f"{task.sent}/{task.total}" if task.total > 0 else "0/0"
+#     percentage = (task.sent / task.total * 100) if task.total > 0 else 0
+#
+#     info_text = (
+#         f"📋 Информация о рассылке #{task.id}\n\n"
+#         f"📊 Статус: {status_icons.get(task.status, '❓')} {task.status}\n"
+#         f"📈 Прогресс: {progress} ({percentage:.1f}%)\n"
+#         f"❌ Ошибки: {task.failed}\n"
+#         f"📝 Тип: {task.content_type}\n"
+#         f"🕒 Создана: {task.created_at.strftime('%d.%m.%Y %H:%M')}\n"
+#         f"🔘 Кнопок: {len(task.buttons)}"
+#     )
+#
+#     await callback.message.edit_text(
+#         info_text,
+#         reply_markup=broadcast_control_kb(task.id)
+#     )
 
 @router.callback_query(F.data.startswith("broadcast_info_"))
 async def broadcast_info(callback: CallbackQuery):
@@ -722,6 +1162,7 @@ async def broadcast_info(callback: CallbackQuery):
 
     from bot.models.broadcast_task import BroadcastTask
     from sqlalchemy import select
+    from datetime import datetime, timedelta, timezone
 
     async with SessionLocal() as session:
         result = await session.execute(select(BroadcastTask).where(BroadcastTask.id == task_id))
@@ -732,26 +1173,77 @@ async def broadcast_info(callback: CallbackQuery):
         return
 
     status_icons = {
-        "pending": "⏳", "sending": "🟢",
+        "pending": "⏳", "sending": "🚀",
         "stopped": "🛑", "done": "✅", "draft": "📝"
     }
 
-    progress = f"{task.sent}/{task.total}" if task.total > 0 else "0/0"
-    percentage = (task.sent / task.total * 100) if task.total > 0 else 0
+    # Базовая информация
+    info_lines = [
+        f"📋 <b>Информация о рассылке #{task.id}</b>\n",
+        f"📊 <b>Статус:</b> {status_icons.get(task.status, '❓')} {task.status}",
+    ]
 
-    info_text = (
-        f"📋 <b>Информация о рассылке #{task.id}</b>\n\n"
-        f"📊 <b>Статус:</b> {status_icons.get(task.status, '❓')} {task.status}\n"
-        f"📈 <b>Прогресс:</b> {progress} ({percentage:.1f}%)\n"
-        f"❌ <b>Ошибки:</b> {task.failed}\n"
-        f"📝 <b>Тип:</b> {task.content_type}\n"
-        f"🕒 <b>Создана:</b> {task.created_at.strftime('%d.%m.%Y %H:%M')}\n"
-        f"🔘 <b>Кнопок:</b> {len(task.buttons)}"
-    )
+    # Прогресс и статистика
+    if task.total > 0:
+        percent = ((task.sent + task.failed) / task.total) * 100
+        progress = progress_bar(task.sent + task.failed, task.total)
+        info_lines.append(
+            f"📈 <b>Прогресс:</b> {progress} <b>{task.sent + task.failed}/{task.total}</b> ({percent:.1f}%)"
+        )
+    else:
+        info_lines.append("📈 <b>Прогресс:</b> нет данных (0/0)")
+
+    info_lines.append(f"✅ <b>Успешно:</b> {task.sent}")
+    info_lines.append(f"❌ <b>Ошибки:</b> {task.failed}")
+
+    if task.total > 0:
+        success_rate = (task.sent / task.total) * 100
+        error_rate = (task.failed / task.total) * 100
+        info_lines.append(f"📊 <b>Успех:</b> {success_rate:.1f}% | <b>Ошибки:</b> {error_rate:.1f}%")
+
+    # Дополнительные параметры рассылки
+    info_lines.append(f"🕒 <b>Создана:</b> {task.created_at.strftime('%d.%m.%Y %H:%M')}")
+
+    # Время работы и скорость
+    now = datetime.now(timezone.utc)
+    elapsed = now - task.created_at
+    elapsed_str = format_time_delta(elapsed)
+
+    if task.status in ("sending", "done", "stopped"):
+        info_lines.append(f"⏱️ <b>Время работы:</b> {elapsed_str}")
+
+    # Скорость и оставшееся время только для активной рассылки
+    if task.status == "sending" and task.sent + task.failed > 0 and elapsed.total_seconds() > 0:
+        minutes_passed = elapsed.total_seconds() / 60
+        speed = (task.sent + task.failed) / minutes_passed  # сообщений в минуту
+        remaining = task.total - (task.sent + task.failed)
+        if speed > 0:
+            remaining_minutes = remaining / speed
+            remaining_delta = timedelta(minutes=remaining_minutes)
+            remaining_str = format_time_delta(remaining_delta)
+        else:
+            remaining_str = "∞"
+
+        info_lines.append(f"⚡ <b>Средняя скорость:</b> {speed:.1f} сообщ/мин")
+        info_lines.append(f"⏳ <b>Осталось примерно:</b> {remaining_str}")
+
+    elif task.status in ("done", "stopped") and task.sent > 0 and elapsed.total_seconds() > 0:
+        minutes_passed = elapsed.total_seconds() / 60
+        speed = (task.sent + task.failed) / minutes_passed
+        info_lines.append(f"⚡ <b>Средняя скорость:</b> {speed:.1f} сообщ/мин (с учётом простоя)")
+
+    # Финальные пометки
+    if task.status == "done":
+        info_lines.append("✅ <b>Рассылка завершена</b>")
+    elif task.status == "stopped":
+        info_lines.append("🛑 <b>Рассылка остановлена</b>")
+
+    info_text = "\n".join(info_lines)
 
     await callback.message.edit_text(
         info_text,
-        reply_markup=broadcast_control_kb(task.id)
+        reply_markup=broadcast_control_kb(task.id),
+        parse_mode="HTML"
     )
 
 
@@ -796,7 +1288,7 @@ async def broadcast_history(callback: CallbackQuery):
 
     if not tasks:
         await callback.message.edit_text(
-            "📜 <b>История рассылок</b>\n\n"
+            "📜 История рассылок\n\n"
             "Нет завершенных рассылок.",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="⬅️ Назад", callback_data="broadcast_main")]
@@ -804,7 +1296,7 @@ async def broadcast_history(callback: CallbackQuery):
         )
         return
 
-    history_text = "📜 <b>История рассылок</b>\n\n"
+    history_text = "📜 История рассылок\n\n"
     for task in tasks:
         status_icon = "✅" if task.status == "done" else "🛑"
         history_text += (
@@ -820,77 +1312,19 @@ async def broadcast_history(callback: CallbackQuery):
     )
 
 
-@router.callback_query(F.data == "save_draft")
-async def save_draft(callback: CallbackQuery):
-    """Сохранение черновика"""
-    user_id = callback.from_user.id
-    if user_id not in BroadcastService.current_editing:
-        await callback.answer("Черновик не найден!")
-        return
-
-    draft = BroadcastService.current_editing[user_id]
-    draft.status = "draft"
-
-    async with SessionLocal() as session:
-        session.add(draft)
-        await session.commit()
-        await session.refresh(draft)
-
-    await callback.answer(f"✅ Черновик сохранен! ID: #{draft.id}")
-
-
-@router.callback_query(F.data == "save_editing")
-async def save_editing(callback: CallbackQuery, state: FSMContext):
-    """Сохранение редактирования"""
-    await state.clear()
-    user_id = callback.from_user.id
-
-    if user_id not in BroadcastService.current_editing:
-        await callback.answer("Черновик не найден!")
-        return
-
-    draft = BroadcastService.current_editing[user_id]
-    preview_text = await _generate_preview_text(draft)
-
-    await callback.message.edit_text(
-        f"✅ <b>Изменения сохранены!</b>\n\n{preview_text}",
-        reply_markup=broadcast_constructor_kb(draft),
-        # parse_mode="HTML"
-    )
-
-
-@router.callback_query(F.data == "cancel_editing")
-async def cancel_editing(callback: CallbackQuery, state: FSMContext):
-    """Отмена редактирования"""
-    await state.clear()
-    user_id = callback.from_user.id
-
-    if user_id not in BroadcastService.current_editing:
-        await callback.answer("Черновик не найден!")
-        return
-
-    draft = BroadcastService.current_editing[user_id]
-    preview_text = await _generate_preview_text(draft)
-
-    await callback.message.edit_text(
-        f"🎨 <b>Конструктор рассылки</b>\n\n{preview_text}",
-        reply_markup=broadcast_constructor_kb(draft),
-        # parse_mode="HTML"
-    )
-
 
 # Навигационные обработчики
 @router.callback_query(F.data == "back_constructor")
 async def back_to_constructor(callback: CallbackQuery):
     """Возврат в конструктор"""
-    await broadcast_constructor(callback, None)
+    await broadcast_constructor(callback)
 
 
 @router.callback_query(F.data == "back_buttons_management")
 async def back_to_buttons_management(callback: CallbackQuery):
     """Возврат к управлению кнопками"""
     await callback.message.edit_text(
-        "🔘 <b>Управление кнопками</b>",
+        "🔘 Управление кнопками",
         reply_markup=buttons_management_kb()
     )
 
@@ -934,3 +1368,20 @@ async def handle_media_message(message: Message, state: FSMContext):
         return
 
     await process_media_edit(message, state)
+
+
+@router.callback_query(F.data == "forward_post")
+async def forward_post_start(callback: CallbackQuery, state: FSMContext):
+    user_id = callback.from_user.id
+    if user_id not in BroadcastService.current_editing:
+        await callback.answer("Сначала создайте черновик через конструктор!")
+        return
+    await state.set_state(BroadcastStates.waiting_forward)
+    await callback.message.edit_text(
+        "📤 Перешлите мне сообщение с готовым постом\n\n"
+        "Я скопирую текст и медиа, а кнопки можно будет добавить позже.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="back_constructor")]
+        ])
+    )
+

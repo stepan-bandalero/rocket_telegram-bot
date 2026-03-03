@@ -61,7 +61,7 @@ class BroadcastService:
                     task.failed += 1
 
                 # Обновляем прогресс каждые 100 отправок
-                if task.sent % 100 == 0:
+                if (task.sent + task.failed) % 100 == 0:
                     try:
                         async with SessionLocal() as session:
                             session.add(task)
@@ -87,39 +87,6 @@ class BroadcastService:
                 session.add(task)
                 await session.commit()
 
-    # @staticmethod
-    # async def _send_text(bot: Bot, user_id: int, task: BroadcastTask):
-    #     # Обработка кнопок
-    #     kb = None
-    #     if task.buttons:
-    #         import json
-    #         try:
-    #             buttons_data = json.loads(str(task.buttons))
-    #             if isinstance(buttons_data, list):
-    #                 kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(**b) for b in buttons_data]])
-    #         except (json.JSONDecodeError, TypeError, ValueError):
-    #             pass
-    #
-    #     # Проверяем, это JSON с entities или обычный текст
-    #
-    #     try:
-    #         await bot.send_message(
-    #             user_id,
-    #             text=str(task.text) if task.text else None,
-    #             reply_markup=kb,
-    #             parse_mode="HTML"
-    #         )
-    #         return
-    #     except:
-    #         pass
-    #
-    #     # Fallback: отправляем как текст
-    #     await bot.send_message(
-    #         user_id,
-    #         text=str(task.text) if task.text else None,
-    #         reply_markup=kb
-    #     )
-
     @staticmethod
     async def _send_text(bot: Bot, user_id: int, task: BroadcastTask):
         kb = None
@@ -127,12 +94,20 @@ class BroadcastService:
             import json
             try:
                 buttons_data = json.loads(str(task.buttons))
-                if isinstance(buttons_data, list):
-                    kb = InlineKeyboardMarkup(
-                        inline_keyboard=[[InlineKeyboardButton(**b) for b in buttons_data]]
-                    )
-            except (json.JSONDecodeError, TypeError, ValueError):
-                pass
+                if buttons_data and isinstance(buttons_data, list):
+                    keyboard_rows = []
+                    for button_data in buttons_data:
+                        try:
+                            # Передаем все данные из словаря в конструктор InlineKeyboardButton
+                            button = InlineKeyboardButton(**button_data)
+                            keyboard_rows.append([button])
+                        except Exception as e:
+                            print(f"Ошибка создания кнопки: {e}")
+                            continue
+                    if keyboard_rows:
+                        kb = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+            except (json.JSONDecodeError, TypeError, ValueError) as e:
+                print(f"Ошибка парсинга кнопок: {e}")
 
         entities = None
         if task.entities:
@@ -145,25 +120,6 @@ class BroadcastService:
             reply_markup=kb
         )
 
-    # @staticmethod
-    # async def _send_photo(bot: Bot, user_id: int, task: BroadcastTask):
-    #     kb = None
-    #     if task.buttons:
-    #         import json
-    #         try:
-    #             buttons_data = json.loads(str(task.buttons))
-    #             if isinstance(buttons_data, list):
-    #                 kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(**b) for b in buttons_data]])
-    #         except (json.JSONDecodeError, TypeError, ValueError):
-    #             pass
-    #
-    #     await bot.send_photo(
-    #         user_id,
-    #         str(task.media) if task.media else "",
-    #         caption=str(task.text) if task.text else None,
-    #         reply_markup=kb,
-    #         parse_mode="HTML"  # ВКЛЮЧАЕМ HTML парсинг
-    #     )
 
     @staticmethod
     async def _send_photo(bot: Bot, user_id: int, task: BroadcastTask):
@@ -172,12 +128,20 @@ class BroadcastService:
             import json
             try:
                 buttons_data = json.loads(str(task.buttons))
-                if isinstance(buttons_data, list):
-                    kb = InlineKeyboardMarkup(
-                        inline_keyboard=[[InlineKeyboardButton(**b) for b in buttons_data]]
-                    )
-            except (json.JSONDecodeError, TypeError, ValueError):
-                pass
+                if buttons_data and isinstance(buttons_data, list):
+                    keyboard_rows = []
+                    for button_data in buttons_data:
+                        try:
+                            # Передаем все данные из словаря в конструктор InlineKeyboardButton
+                            button = InlineKeyboardButton(**button_data)
+                            keyboard_rows.append([button])
+                        except Exception as e:
+                            print(f"Ошибка создания кнопки: {e}")
+                            continue
+                    if keyboard_rows:
+                        kb = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+            except (json.JSONDecodeError, TypeError, ValueError) as e:
+                print(f"Ошибка парсинга кнопок: {e}")
 
         entities = None
         if task.entities:
@@ -198,18 +162,21 @@ class BroadcastService:
             import json
             try:
                 buttons_data = json.loads(str(task.buttons))
-                if isinstance(buttons_data, list):
-                    kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(**b) for b in buttons_data]])
-            except (json.JSONDecodeError, TypeError, ValueError):
-                pass
+                if buttons_data and isinstance(buttons_data, list):
+                    keyboard_rows = []
+                    for button_data in buttons_data:
+                        try:
+                            # Передаем все данные из словаря в конструктор InlineKeyboardButton
+                            button = InlineKeyboardButton(**button_data)
+                            keyboard_rows.append([button])
+                        except Exception as e:
+                            print(f"Ошибка создания кнопки: {e}")
+                            continue
+                    if keyboard_rows:
+                        kb = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+            except (json.JSONDecodeError, TypeError, ValueError) as e:
+                print(f"Ошибка парсинга кнопок: {e}")
 
-        # await bot.send_video(
-        #     user_id,
-        #     str(task.media) if task.media else "",
-        #     caption=str(task.text) if task.text else None,
-        #     reply_markup=kb,
-        #     parse_mode="HTML"  # ВКЛЮЧАЕМ HTML парсинг
-        # )
 
         entities = None
         if task.entities:

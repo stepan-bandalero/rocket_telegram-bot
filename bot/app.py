@@ -11,7 +11,7 @@ from aiogram.client.default import DefaultBotProperties
 from .config import settings
 from .middlewares.db import DataBaseSessionMiddleware
 from .middlewares.rate_limiter import RateLimiterMiddleware
-from .handlers import start, admin, admin_promos, admin_channels, admin_broadcast, admin_users, admin_gift, admin_balance, admin_activity, admin_stars, system_stats, business_debug, gift_payout, ton_requests, gift_promos, transactions, admin_user, stars_payment
+from .handlers import start, admin, admin_promos, admin_channels, admin_broadcast, admin_users, admin_gift, admin_balance, admin_activity, admin_stars, system_stats, business_debug, gift_payout, ton_requests, gift_promos, transactions, admin_user, stars_payment, lottery
 
 sys.path.append(str(Path(__file__).resolve().parent))
 
@@ -52,6 +52,7 @@ async def main():
     dp.include_router(transactions.router)
     dp.include_router(stars_payment.router)
     dp.include_router(admin_activity.router)
+    dp.include_router(lottery.router)
 
 
 
@@ -95,7 +96,7 @@ if __name__ == "__main__":
 # from bot.middlewares.rate_limiter import RateLimiterMiddleware
 #
 #
-# from bot.handlers import start, admin, admin_promos, admin_channels, admin_broadcast, admin_users, admin_gift, admin_balance, admin_activity, admin_stars, system_stats, business_debug, gift_payout, ton_requests, gift_promos, transactions, admin_user, stars_payment
+# from bot.handlers import start, admin, admin_promos, admin_channels, admin_broadcast, admin_users, admin_gift, admin_balance, admin_activity, admin_stars, system_stats, business_debug, gift_payout, ton_requests, gift_promos, transactions, admin_user, stars_payment, lottery
 #
 # logging.basicConfig(
 #     level=logging.INFO,
@@ -135,6 +136,7 @@ if __name__ == "__main__":
 #     dp.include_router(transactions.router)
 #     dp.include_router(stars_payment.router)
 #     dp.include_router(admin_activity.router)
+#     dp.include_router(lottery.router)
 #
 #     logger.info("🚀 Бот запускается...")
 #

@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+        body {
+            background: black;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+        .lottery-card {
+            width: 360px;
+            background: black;
+            border-radius: 19px;
+            overflow: hidden;
+        }
+
+.ticket-top,
+.ticket-bottom {
+  position: relative;
+}
+
+.ticket-top::after,
+.ticket-bottom::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.ticket-top {
+background: linear-gradient(138.51deg, rgba(65,66,67,0.4) 26.53%, rgba(100,105,129,0.4) 587.35%);
+  border-radius: 13px 13px 0 0;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  -webkit-mask:
+    radial-gradient(circle 8px at left bottom, transparent 99%, black 100%),
+    radial-gradient(circle 8px at right bottom, transparent 99%, black 100%),
+    linear-gradient(black, black);
+  -webkit-mask-composite: destination-out;
+  mask-composite: exclude;
+}
+
+.ticket-bottom {
+  -webkit-mask:
+    radial-gradient(circle 8px at left top, transparent 99%, black 100%),
+    radial-gradient(circle 8px at right top, transparent 99%, black 100%),
+    linear-gradient(black, black);
+  -webkit-mask-composite: destination-out;
+  mask-composite: exclude;
+}
+
+.ticket-divider {
+  background: repeating-linear-gradient(
+    to right,
+    rgba(21,22,27,0.7) 0 15px,
+    rgba(30,30,30,0.2) 15px 30px
+  );
+}
+
+.title {
+font-weight: 500;
+font-size: 15px;
+line-height: 110%;
+color: #fff;
+}
+        .countdown {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            color: #C1E43E;
+            font-size: 15px;
+            line-height: 110%;
+            font-weight: 500;
+
+        }
+
+        .countdown-icon {
+            width: 16px;
+            height: 16px;
+            }
+        .perforation {
+            padding: 0 8px;
+        }
+        .perforation-line {
+            height: 2px;
+            background: repeating-linear-gradient(to right, rgba(21,22,27,0.7) 0 15px, rgba(30,30,30,0.2) 15px 30px);
+        }
+        .ticket-bottom {
+            background: rgba(21,22,27,0.7);
+            border-radius: 0 0 19px 19px;
+            padding: 16px;
+        }
+        .prize-title {
+            font-weight: 600;
+            font-size: 20px;
+            line-height: 110%;
+            color: white;
+            margin-bottom: 12px;
+        }
+        .stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-bottom: 16px;
+        }
+        .stat-item {
+            background: #26262F;
+            border-radius: 7px;
+            padding: 8px 12px;
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: rgba(255,255,255,0.5);
+        }
+        .prize-card {
+            background: rgba(0,0,0,0.4);
+            border-top: 1px solid #1E1E1E;
+            border-radius: 19px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .prize-image {
+            width: 72px;
+            height: 72px;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            background: transparent;
+        }
+        .price-row {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .price-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: white;
+            font-weight: 500;
+            font-size: 16px;
+        }
+        .price-item .ton-icon {
+            width: 20px;
+            height: 20px;
+
+        }
+        .price-item .star-icon {
+            width: 20px;
+            height: 20px;
+
+        }
+        .bottom-section {
+            margin-top: 16px;
+        }
+        .paid-control {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .ticket-price {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: white;
+            font-weight: 500;
+            font-size: 16px;
+        }
+        .counter {
+            display: flex;
+            align-items: center;
+            border-radius: 9px;
+            background: #151515;
+            overflow: hidden;
+            gap: 8px;
+        }
+        .counter button {
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.5);
+            font-weight: 500;
+            font-size: 16px;
+            padding: 4px 10px;
+            cursor: default;
+        }
+        .counter span {
+            color: white;
+            font-weight: 500;
+            min-width: 20px;
+            text-align: center;
+        }
+        .buy-button {
+            width: 100%;
+            height: 48px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: linear-gradient(237.83deg, #C1E245 26.41%, #C1ED1A 73.59%);
+            box-shadow: 0 0 48.3px rgba(187, 235, 1, 0.25), 0 0 62.5px rgba(225, 255, 162, 0.1);
+            color: black;
+            cursor: default;
+        }
+        .free-button {
+            width: 100%;
+            height: 48px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(237.83deg, #C1E245 26.41%, #C1ED1A 73.59%);
+            box-shadow: 0 0 48.3px rgba(187, 235, 1, 0.25), 0 0 62.5px rgba(225, 255, 162, 0.1);
+            color: black;
+            cursor: default;
+        }
+        .buy-button .star-icon-small {
+            width: 18px;
+            height: 18px;
+
+        }
+
+    </style>
+</head>
+<body>
+    <div class="lottery-card">
+        <!-- Верх -->
+        <div class="ticket-top">
+            <h3 class="title">Конкурс за билеты</h3>
+            <div class="countdown">
+                <span class="countdown-icon">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10 2.5C5.85938 2.5 2.5 5.85938 2.5 10C2.5 14.1406 5.85938 17.5 10 17.5C14.1406 17.5 17.5 14.1406 17.5 10C17.5 5.85938 14.1406 2.5 10 2.5Z" stroke="#C1E43E" stroke-width="1.25" stroke-miterlimit="10"/>
+        <path d="M10 5V10.625H13.75" stroke="#C1E43E" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+</span>
+                <span>{{ time_left  }}</span>
+            </div>
+        </div>
+
+        <!-- Перфорация -->
+        <div class="perforation">
+            <div class="perforation-line"></div>
+        </div>
+
+        <!-- Низ -->
+        <div class="ticket-bottom">
+            <div class="prize-title">{{ title }}</div>
+
+            <!-- Плашки статистики -->
+            <div class="stats">
+                <div class="stat-item">
+                    <span>Твои билеты</span>
+                    <span>{{ user_tickets_count }}</span>
+                </div>
+                <div class="stat-item">
+                    <span>Участники</span>
+                    <span>{{ participants_count }}</span>
+                </div>
+                <div class="stat-item">
+                    <span>Всего билетов</span>
+                    <span>{{ tickets_sold_count }}</span>
+                </div>
+                <div class="stat-item">
+                    <span>Призовых мест</span>
+                    <span>{{ winners_count }}</span>
+                </div>
+            </div>
+
+            <!-- Карточка приза -->
+            <div class="prize-card">
+                <div class="prize-image">
+    <img
+        src="https://rocket-app.link/_next/image?url=%2Fgifts%2F{{ prize_gift_id }}.png&w=256&q=75"
+        alt="{{ title }}"
+        style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;"
+    />
+</div>
+            </div>
+
+            <!-- Цена приза -->
+            <div class="price-row">
+                <div class="price-item">
+                    <span class="ton-icon">
+    <svg width="21" height="21" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="21" height="21" rx="10.5" fill="white"/>
+        <path d="M10.5 0C4.70138 0 0 4.70138 0 10.5C0 16.2986 4.70138 21 10.5 21C16.2986 21 21 16.2986 21 10.5C21 4.70138 16.2986 0 10.5 0ZM6.91425 5.85988H14.0857C15.4026 5.85988 16.24 7.28438 15.5776 8.43237L11.151 16.1017C11.0849 16.2158 10.9899 16.3105 10.8757 16.3763C10.7614 16.4422 10.6319 16.4768 10.5 16.4768C10.3681 16.4768 10.2386 16.4422 10.1243 16.3763C10.0101 16.3105 9.91514 16.2158 9.849 16.1017L5.42412 8.43237C4.76087 7.28263 5.5965 5.85988 6.91425 5.85988ZM11.1528 7.16887V13.8014L12.117 11.9394L14.441 7.77787C14.4766 7.71571 14.4951 7.64526 14.4948 7.57364C14.4944 7.50201 14.4751 7.43176 14.4389 7.36997C14.4027 7.30818 14.3508 7.25704 14.2885 7.22173C14.2262 7.18642 14.1556 7.16819 14.084 7.16887H11.1528ZM6.9125 7.17062C6.84103 7.16985 6.77063 7.18795 6.7084 7.22311C6.64617 7.25827 6.59432 7.30923 6.5581 7.37084C6.52188 7.43245 6.50256 7.50254 6.50211 7.57401C6.50165 7.64548 6.52007 7.7158 6.5555 7.77787L8.88125 11.9376L9.8455 13.8014V7.17062H6.9125Z" fill="#0199E3"/>
+    </svg>
+</span>
+                    <span>{{ "%.2f"|format(gift_price_cents / 100) }}</span>
+                </div>
+                <div class="price-item">
+                    <span class="star-icon">
+    <svg width="21" height="21" viewBox="0 0 14 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M6.63869 12.1902L3.50621 14.1092C3.18049 14.3087 2.75468 14.2064 2.55515 13.8807C2.45769 13.7216 2.42864 13.5299 2.47457 13.3491L2.95948 11.4405C3.13452 10.7515 3.60599 10.1756 4.24682 9.86791L7.6642 8.22716C7.82352 8.15067 7.89067 7.95951 7.81418 7.80019C7.75223 7.67116 7.61214 7.59896 7.47111 7.62338L3.66713 8.28194C2.89387 8.41581 2.1009 8.20228 1.49941 7.69823L0.297703 6.69116C0.00493565 6.44581 -0.0335059 6.00958 0.211842 5.71682C0.33117 5.57442 0.502766 5.48602 0.687982 5.47153L4.35956 5.18419C4.61895 5.16389 4.845 4.99974 4.94458 4.75937L6.36101 1.3402C6.5072 0.987302 6.91179 0.819734 7.26469 0.965925C7.43413 1.03612 7.56876 1.17075 7.63896 1.3402L9.05539 4.75937C9.15496 4.99974 9.38101 5.16389 9.6404 5.18419L13.3322 5.47311C13.713 5.50291 13.9975 5.83578 13.9677 6.2166C13.9534 6.39979 13.8667 6.56975 13.7269 6.68896L10.9114 9.08928C10.7131 9.25826 10.6267 9.52425 10.6876 9.77748L11.5532 13.3733C11.6426 13.7447 11.414 14.1182 11.0427 14.2076C10.8642 14.2506 10.676 14.2208 10.5195 14.1249L7.36128 12.1902C7.13956 12.0544 6.8604 12.0544 6.63869 12.1902Z" fill="#FFC63B"/>
+    </svg>
+</span>
+                    <span>{{ gift_price_stars }}</span>
+                </div>
+            </div>
+
+            <!-- Нижняя часть в зависимости от типа -->
+            {% if type == "paid" %}
+            <div class="bottom-section">
+                <div class="paid-control">
+                    <div class="ticket-price">
+                        <span class="star-icon">
+                            <svg
+			width="21"
+			height="21"
+			viewBox="0 0 14 15"
+			fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+		>
+			<path
+				fill-rule="evenodd"
+				clip-rule="evenodd"
+				d="M6.63869 12.1902L3.50621 14.1092C3.18049 14.3087 2.75468 14.2064 2.55515 13.8807C2.45769 13.7216 2.42864 13.5299 2.47457 13.3491L2.95948 11.4405C3.13452 10.7515 3.60599 10.1756 4.24682 9.86791L7.6642 8.22716C7.82352 8.15067 7.89067 7.95951 7.81418 7.80019C7.75223 7.67116 7.61214 7.59896 7.47111 7.62338L3.66713 8.28194C2.89387 8.41581 2.1009 8.20228 1.49941 7.69823L0.297703 6.69116C0.00493565 6.44581 -0.0335059 6.00958 0.211842 5.71682C0.33117 5.57442 0.502766 5.48602 0.687982 5.47153L4.35956 5.18419C4.61895 5.16389 4.845 4.99974 4.94458 4.75937L6.36101 1.3402C6.5072 0.987302 6.91179 0.819734 7.26469 0.965925C7.43413 1.03612 7.56876 1.17075 7.63896 1.3402L9.05539 4.75937C9.15496 4.99974 9.38101 5.16389 9.6404 5.18419L13.3322 5.47311C13.713 5.50291 13.9975 5.83578 13.9677 6.2166C13.9534 6.39979 13.8667 6.56975 13.7269 6.68896L10.9114 9.08928C10.7131 9.25826 10.6267 9.52425 10.6876 9.77748L11.5532 13.3733C11.6426 13.7447 11.414 14.1182 11.0427 14.2076C10.8642 14.2506 10.676 14.2208 10.5195 14.1249L7.36128 12.1902C7.13956 12.0544 6.8604 12.0544 6.63869 12.1902Z"
+				fill="#FFC63B"
+			/>
+		</svg>
+                        </span>
+                        <span>{{ ticket_price_stars }}</span>
+                    </div>
+                    <div class="counter">
+                        <button>-</button>
+                        <span>1</span>
+                        <button>+</button>
+                    </div>
+                </div>
+                <div class="buy-button">
+                    Купить билеты
+                    <span class="star-icon-small"><svg
+			width="20"
+			height="21"
+			viewBox="0 0 14 15"
+			fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+		>
+			<path
+				fill-rule="evenodd"
+				clip-rule="evenodd"
+				d="M6.63869 12.1902L3.50621 14.1092C3.18049 14.3087 2.75468 14.2064 2.55515 13.8807C2.45769 13.7216 2.42864 13.5299 2.47457 13.3491L2.95948 11.4405C3.13452 10.7515 3.60599 10.1756 4.24682 9.86791L7.6642 8.22716C7.82352 8.15067 7.89067 7.95951 7.81418 7.80019C7.75223 7.67116 7.61214 7.59896 7.47111 7.62338L3.66713 8.28194C2.89387 8.41581 2.1009 8.20228 1.49941 7.69823L0.297703 6.69116C0.00493565 6.44581 -0.0335059 6.00958 0.211842 5.71682C0.33117 5.57442 0.502766 5.48602 0.687982 5.47153L4.35956 5.18419C4.61895 5.16389 4.845 4.99974 4.94458 4.75937L6.36101 1.3402C6.5072 0.987302 6.91179 0.819734 7.26469 0.965925C7.43413 1.03612 7.56876 1.17075 7.63896 1.3402L9.05539 4.75937C9.15496 4.99974 9.38101 5.16389 9.6404 5.18419L13.3322 5.47311C13.713 5.50291 13.9975 5.83578 13.9677 6.2166C13.9534 6.39979 13.8667 6.56975 13.7269 6.68896L10.9114 9.08928C10.7131 9.25826 10.6267 9.52425 10.6876 9.77748L11.5532 13.3733C11.6426 13.7447 11.414 14.1182 11.0427 14.2076C10.8642 14.2506 10.676 14.2208 10.5195 14.1249L7.36128 12.1902C7.13956 12.0544 6.8604 12.0544 6.63869 12.1902Z"
+				fill="#000"
+			/>
+		</svg></span>
+                    <span>{{ ticket_price_stars }}</span>
+                </div>
+            </div>
+            {% else %}
+            <div class="free-button">
+                Участвовать
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

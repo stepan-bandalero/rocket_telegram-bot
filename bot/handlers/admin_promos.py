@@ -86,24 +86,140 @@ def build_promos_list_keyboard(page: int, has_prev: bool, has_next: bool, promo_
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
+# async def get_promo_stats(session: AsyncSession, promo_id: int):
+#     """Получение полной статистики по промо-ссылке"""
+#     # Основная информация о промо с загрузкой рефералов
+#     promo_stmt = (
+#         select(PromoLink)
+#         .where(PromoLink.id == promo_id)
+#         .options(selectinload(PromoLink.referrals))
+#     )
+#     promo_result = await session.execute(promo_stmt)
+#     promo = promo_result.scalar_one_or_none()
+# 
+#     if not promo:
+#         return None
+# 
+#     # Получаем ID всех рефералов этой промо-ссылки
+#     referral_user_ids = [ref.user_id for ref in promo.referrals]
+# 
+#     # Реальные реферальные отчисления
+#     actual_earnings = await session.scalar(
+#         select(func.coalesce(func.sum(ReferralEarning.amount), 0)).where(
+#             ReferralEarning.referrer_id == promo.created_by
+#         )
+#     )
+# 
+#     # Инициализируем статистику с нулевыми значениями
+#     stats = {
+#         "promo": promo,
+#         "referral_count": len(referral_user_ids),
+#         "actual_earnings": actual_earnings or 0,
+#         "deposits_ton": 0,
+#         "deposits_gift": 0,
+#         "deposits_stars": 0,  # НОВОЕ: пополнения в звездах
+#         "gift_deposits_count": 0,
+#         "star_deposits_count": 0,  # НОВОЕ: количество пополнений звезд
+#         "ton_withdrawals": 0,
+#         "gift_withdrawals": 0,
+#         "active_users": 0,
+#     }
+# 
+#     if not referral_user_ids:
+#         return stats
+# 
+#     # Сумма депозитов в TON
+#     deposits_ton = await session.scalar(
+#         select(func.coalesce(func.sum(UserTransaction.amount), 0)).where(
+#             (UserTransaction.user_id.in_(referral_user_ids)) &
+#             (UserTransaction.type == "deposit") &
+#             (UserTransaction.currency == "ton")
+#         )
+#     )
+# 
+#     # Сумма депозитов в подарках
+#     deposits_gift = await session.scalar(
+#         select(func.coalesce(func.sum(UserTransaction.amount), 0)).where(
+#             (UserTransaction.user_id.in_(referral_user_ids)) &
+#             (UserTransaction.type == "deposit") &
+#             (UserTransaction.currency == "gift")
+#         )
+#     )
+# 
+#     # Сумма депозитов в звездах - ИЗ ТАБЛИЦЫ StarsInvoice
+#     deposits_stars = await session.scalar(
+#         select(func.coalesce(func.sum(StarsInvoice.amount), 0)).where(
+#             (StarsInvoice.telegram_id.in_(referral_user_ids)) &
+#             (StarsInvoice.status == "paid")  # Только оплаченные инвойсы
+#         )
+#     )
+# 
+#     # Количество пополнений подарков
+#     gift_deposits_count = await session.scalar(
+#         select(func.count(UserTransaction.id)).where(
+#             (UserTransaction.user_id.in_(referral_user_ids)) &
+#             (UserTransaction.type == "deposit") &
+#             (UserTransaction.currency == "gift")
+#         )
+#     )
+# 
+#     # Количество пополнений звезд - ИЗ ТАБЛИЦЫ StarsInvoice
+#     star_deposits_count = await session.scalar(
+#         select(func.count(StarsInvoice.id)).where(
+#             (StarsInvoice.telegram_id.in_(referral_user_ids)) &
+#             (StarsInvoice.status == "paid")  # Только оплаченные инвойсы
+#         )
+#     )
+# 
+#     # Сумма выводов TON
+#     ton_withdrawals = await session.scalar(
+#         select(func.coalesce(func.sum(WithdrawRequest.amount), 0)).where(
+#             (WithdrawRequest.user_id.in_(referral_user_ids)) &
+#             (WithdrawRequest.status == "done")
+#         )
+#     )
+# 
+#     # Сумма выводов подарков
+#     gift_withdrawals = await session.scalar(
+#         select(func.coalesce(func.sum(GiftWithdrawal.purchase_price_cents), 0)).where(
+#             (GiftWithdrawal.user_id.in_(referral_user_ids)) &
+#             (GiftWithdrawal.status == "done")
+#         )
+#     )
+# 
+#     # Активные пользователи (те, у кого есть депозиты)
+#     active_users = await session.scalar(
+#         select(func.count(func.distinct(UserTransaction.user_id))).where(
+#             (UserTransaction.user_id.in_(referral_user_ids)) &
+#             (UserTransaction.type == "deposit")
+#         )
+#     )
+# 
+#     stats.update({
+#         "deposits_ton": deposits_ton or 0,
+#         "deposits_gift": deposits_gift or 0,
+#         "deposits_stars": deposits_stars or 0,  # НОВОЕ
+#         "gift_deposits_count": gift_deposits_count or 0,
+#         "star_deposits_count": star_deposits_count or 0,  # НОВОЕ
+#         "ton_withdrawals": ton_withdrawals or 0,
+#         "gift_withdrawals": gift_withdrawals or 0,
+#         "active_users": active_users or 0,
+#     })
+# 
+#     return stats
+
+
 async def get_promo_stats(session: AsyncSession, promo_id: int):
     """Получение полной статистики по промо-ссылке"""
-    # Основная информация о промо с загрузкой рефералов
-    promo_stmt = (
-        select(PromoLink)
-        .where(PromoLink.id == promo_id)
-        .options(selectinload(PromoLink.referrals))
-    )
+    # Основная информация о промо (без загрузки рефералов)
+    promo_stmt = select(PromoLink).where(PromoLink.id == promo_id)
     promo_result = await session.execute(promo_stmt)
     promo = promo_result.scalar_one_or_none()
 
     if not promo:
         return None
 
-    # Получаем ID всех рефералов этой промо-ссылки
-    referral_user_ids = [ref.user_id for ref in promo.referrals]
-
-    # Реальные реферальные отчисления
+    # Реальные реферальные отчисления (оставляем как есть)
     actual_earnings = await session.scalar(
         select(func.coalesce(func.sum(ReferralEarning.amount), 0)).where(
             ReferralEarning.referrer_id == promo.created_by
@@ -113,25 +229,31 @@ async def get_promo_stats(session: AsyncSession, promo_id: int):
     # Инициализируем статистику с нулевыми значениями
     stats = {
         "promo": promo,
-        "referral_count": len(referral_user_ids),
+        "referral_count": await session.scalar(
+            select(func.count(PromoReferral.id)).where(PromoReferral.promo_id == promo_id)
+        ) or 0,
         "actual_earnings": actual_earnings or 0,
         "deposits_ton": 0,
         "deposits_gift": 0,
-        "deposits_stars": 0,  # НОВОЕ: пополнения в звездах
+        "deposits_stars": 0,
         "gift_deposits_count": 0,
-        "star_deposits_count": 0,  # НОВОЕ: количество пополнений звезд
+        "star_deposits_count": 0,
         "ton_withdrawals": 0,
         "gift_withdrawals": 0,
         "active_users": 0,
     }
 
-    if not referral_user_ids:
+    # Если нет рефералов, остальное оставляем нулями
+    if stats["referral_count"] == 0:
         return stats
 
     # Сумма депозитов в TON
     deposits_ton = await session.scalar(
-        select(func.coalesce(func.sum(UserTransaction.amount), 0)).where(
-            (UserTransaction.user_id.in_(referral_user_ids)) &
+        select(func.coalesce(func.sum(UserTransaction.amount), 0))
+        .select_from(UserTransaction)
+        .join(PromoReferral, UserTransaction.user_id == PromoReferral.user_id)
+        .where(
+            (PromoReferral.promo_id == promo_id) &
             (UserTransaction.type == "deposit") &
             (UserTransaction.currency == "ton")
         )
@@ -139,58 +261,79 @@ async def get_promo_stats(session: AsyncSession, promo_id: int):
 
     # Сумма депозитов в подарках
     deposits_gift = await session.scalar(
-        select(func.coalesce(func.sum(UserTransaction.amount), 0)).where(
-            (UserTransaction.user_id.in_(referral_user_ids)) &
+        select(func.coalesce(func.sum(UserTransaction.amount), 0))
+        .select_from(UserTransaction)
+        .join(PromoReferral, UserTransaction.user_id == PromoReferral.user_id)
+        .where(
+            (PromoReferral.promo_id == promo_id) &
             (UserTransaction.type == "deposit") &
             (UserTransaction.currency == "gift")
         )
     )
 
-    # Сумма депозитов в звездах - ИЗ ТАБЛИЦЫ StarsInvoice
+    # Сумма депозитов в звёздах (из StarsInvoice)
     deposits_stars = await session.scalar(
-        select(func.coalesce(func.sum(StarsInvoice.amount), 0)).where(
-            (StarsInvoice.telegram_id.in_(referral_user_ids)) &
-            (StarsInvoice.status == "paid")  # Только оплаченные инвойсы
+        select(func.coalesce(func.sum(StarsInvoice.amount), 0))
+        .select_from(StarsInvoice)
+        .join(PromoReferral, StarsInvoice.telegram_id == PromoReferral.user_id)
+        .where(
+            (PromoReferral.promo_id == promo_id) &
+            (StarsInvoice.status == "paid")
         )
     )
 
     # Количество пополнений подарков
     gift_deposits_count = await session.scalar(
-        select(func.count(UserTransaction.id)).where(
-            (UserTransaction.user_id.in_(referral_user_ids)) &
+        select(func.count(UserTransaction.id))
+        .select_from(UserTransaction)
+        .join(PromoReferral, UserTransaction.user_id == PromoReferral.user_id)
+        .where(
+            (PromoReferral.promo_id == promo_id) &
             (UserTransaction.type == "deposit") &
             (UserTransaction.currency == "gift")
         )
     )
 
-    # Количество пополнений звезд - ИЗ ТАБЛИЦЫ StarsInvoice
+    # Количество пополнений звёзд
     star_deposits_count = await session.scalar(
-        select(func.count(StarsInvoice.id)).where(
-            (StarsInvoice.telegram_id.in_(referral_user_ids)) &
-            (StarsInvoice.status == "paid")  # Только оплаченные инвойсы
+        select(func.count(StarsInvoice.id))
+        .select_from(StarsInvoice)
+        .join(PromoReferral, StarsInvoice.telegram_id == PromoReferral.user_id)
+        .where(
+            (PromoReferral.promo_id == promo_id) &
+            (StarsInvoice.status == "paid")
         )
     )
 
     # Сумма выводов TON
     ton_withdrawals = await session.scalar(
-        select(func.coalesce(func.sum(WithdrawRequest.amount), 0)).where(
-            (WithdrawRequest.user_id.in_(referral_user_ids)) &
+        select(func.coalesce(func.sum(WithdrawRequest.amount), 0))
+        .select_from(WithdrawRequest)
+        .join(PromoReferral, WithdrawRequest.user_id == PromoReferral.user_id)
+        .where(
+            (PromoReferral.promo_id == promo_id) &
             (WithdrawRequest.status == "done")
         )
     )
 
     # Сумма выводов подарков
     gift_withdrawals = await session.scalar(
-        select(func.coalesce(func.sum(GiftWithdrawal.purchase_price_cents), 0)).where(
-            (GiftWithdrawal.user_id.in_(referral_user_ids)) &
+        select(func.coalesce(func.sum(GiftWithdrawal.purchase_price_cents), 0))
+        .select_from(GiftWithdrawal)
+        .join(PromoReferral, GiftWithdrawal.user_id == PromoReferral.user_id)
+        .where(
+            (PromoReferral.promo_id == promo_id) &
             (GiftWithdrawal.status == "done")
         )
     )
 
-    # Активные пользователи (те, у кого есть депозиты)
+    # Активные пользователи
     active_users = await session.scalar(
-        select(func.count(func.distinct(UserTransaction.user_id))).where(
-            (UserTransaction.user_id.in_(referral_user_ids)) &
+        select(func.count(func.distinct(UserTransaction.user_id)))
+        .select_from(UserTransaction)
+        .join(PromoReferral, UserTransaction.user_id == PromoReferral.user_id)
+        .where(
+            (PromoReferral.promo_id == promo_id) &
             (UserTransaction.type == "deposit")
         )
     )
@@ -198,9 +341,9 @@ async def get_promo_stats(session: AsyncSession, promo_id: int):
     stats.update({
         "deposits_ton": deposits_ton or 0,
         "deposits_gift": deposits_gift or 0,
-        "deposits_stars": deposits_stars or 0,  # НОВОЕ
+        "deposits_stars": deposits_stars or 0,
         "gift_deposits_count": gift_deposits_count or 0,
-        "star_deposits_count": star_deposits_count or 0,  # НОВОЕ
+        "star_deposits_count": star_deposits_count or 0,
         "ton_withdrawals": ton_withdrawals or 0,
         "gift_withdrawals": gift_withdrawals or 0,
         "active_users": active_users or 0,
@@ -260,8 +403,7 @@ def format_promo_stats(stats: dict) -> str:
         f"  ┗ Всего: <b>{total_withdrawals_ton:,.2f} TON</b>\n"
         f"\n"
         f"💸 <b>РЕФЕРАЛЬНЫЕ ОТЧИСЛЕНИЯ</b>\n"
-        f"  ┣ Фактические: <b>{actual_earnings_ton:,.2f} TON</b>\n"
-        f"  ┗ Расчетные: <b>{calculated_earnings:,.2f} TON</b>\n"
+        f"  ┣ Фактические: <b>{actual_earnings_ton:,.2f} TON</b>"
     )
 
 

@@ -26,7 +26,7 @@ async def broadcast_command(message: Message):
         return
 
     await message.answer(
-        "📊 <b>Управление рассылками</b>\n\n"
+        "📊 Управление рассылками\n\n"
         "Выберите действие:",
         reply_markup=broadcast_main_kb()
     )
