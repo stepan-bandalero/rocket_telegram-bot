@@ -62,6 +62,10 @@ CASES_DATA = {
     "case-36": {"name": "Peach", "cost_type": "stars", "cost_value": 100},
     "case-39": {"name": "Durovs", "cost_type": "ton", "cost_value": 9.5},
     "case-40": {"name": "Durovs", "cost_type": "stars", "cost_value": 950},
+    "case-41": {"name": "101 Roses", "cost_type": "ton", "cost_value": 0.99},
+    "case-42": {"name": "101 Roses", "cost_type": "stars", "cost_value": 99},
+    "case-43": {"name": "Her Day", "cost_type": "ton", "cost_value": 16.99},
+    "case-44": {"name": "Her Day", "cost_type": "stars", "cost_value": 1699},
 }
 
 # Словарь для преобразования режимов плинко
