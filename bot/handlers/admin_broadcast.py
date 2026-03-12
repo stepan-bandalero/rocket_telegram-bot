@@ -638,24 +638,24 @@ async def _generate_preview_text(draft) -> str:
 #         await callback.answer("Кнопка не найдена!")
 #
 #
-# @router.callback_query(F.data == "clear_buttons")
-# async def clear_buttons(callback: CallbackQuery):
-#     """Очистка всех кнопок"""
-#     user_id = callback.from_user.id
-#     if user_id not in BroadcastService.current_editing:
-#         await callback.answer("Черновик не найден!")
-#         return
-#
-#     draft = BroadcastService.current_editing[user_id]
-#
-#     # Просто устанавливаем пустой JSON массив
-#     import json
-#     draft.buttons = json.dumps([])
-#
-#     await callback.message.edit_text(
-#         "✅ Все кнопки очищены!",
-#         reply_markup=buttons_management_kb()
-#     )
+@router.callback_query(F.data == "clear_buttons")
+async def clear_buttons(callback: CallbackQuery):
+    """Очистка всех кнопок"""
+    user_id = callback.from_user.id
+    if user_id not in BroadcastService.current_editing:
+        await callback.answer("Черновик не найден!")
+        return
+
+    draft = BroadcastService.current_editing[user_id]
+
+    # Просто устанавливаем пустой JSON массив
+    import json
+    draft.buttons = json.dumps([])
+
+    await callback.message.edit_text(
+        "✅ Все кнопки очищены!",
+        reply_markup=buttons_management_kb()
+    )
 
 @router.callback_query(F.data == "add_button")
 async def add_button_start(callback: CallbackQuery, state: FSMContext):
@@ -1041,47 +1041,82 @@ async def start_broadcast(callback: CallbackQuery):
         reply_markup=confirm_kb
     )
 
+#
+# @router.callback_query(F.data == "confirm_broadcast")
+# async def confirm_broadcast(callback: CallbackQuery, bot: Bot):
+#     """Подтверждение и запуск рассылки"""
+#     user_id = callback.from_user.id
+#     if user_id not in BroadcastService.current_editing:
+#         await callback.answer("Черновик не найден!")
+#         return
+#
+#     draft = BroadcastService.current_editing[user_id]
+#
+#     # Получаем список пользователей для рассылки
+#     from bot.models.users import User
+#     async with SessionLocal() as session:
+#         result = await session.execute(select(User.telegram_id))
+#         users = [row[0] for row in result.all()]
+#
+#     if not users:
+#         await callback.answer("Нет пользователей для рассылки!")
+#         return
+#
+#     # Сохраняем задачу в БД
+#     draft.status = "pending"
+#     draft.total = len(users)
+#
+#     async with SessionLocal() as session:
+#         session.add(draft)
+#         await session.commit()
+#         await session.refresh(draft)
+#
+#     # Запускаем рассылку в фоне
+#     asyncio.create_task(BroadcastService.send_task(bot, draft, users))
+#
+#     # Убираем черновик из редактирования
+#     BroadcastService.current_editing.pop(user_id, None)
+#
+#     await callback.message.edit_text(
+#         "✅ Рассылка запущена!\n\n"
+#         f"Получателей: {len(users)}\n"
+#         f"ID рассылки: #{draft.id}\n\n"
+#         "Отслеживать прогресс можно в разделе 'Активные рассылки'",
+#         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+#             [InlineKeyboardButton(text="📊 Активные рассылки", callback_data="broadcast_active")],
+#             [InlineKeyboardButton(text="⬅️ В главное меню", callback_data="broadcast_main")]
+#         ])
+#     )
+
 
 @router.callback_query(F.data == "confirm_broadcast")
 async def confirm_broadcast(callback: CallbackQuery, bot: Bot):
-    """Подтверждение и запуск рассылки"""
+
     user_id = callback.from_user.id
+
     if user_id not in BroadcastService.current_editing:
         await callback.answer("Черновик не найден!")
         return
 
     draft = BroadcastService.current_editing[user_id]
 
-    # Получаем список пользователей для рассылки
-    from bot.models.users import User
-    async with SessionLocal() as session:
-        result = await session.execute(select(User.telegram_id))
-        users = [row[0] for row in result.all()]
-
-    if not users:
-        await callback.answer("Нет пользователей для рассылки!")
-        return
-
-    # Сохраняем задачу в БД
     draft.status = "pending"
-    draft.total = len(users)
 
     async with SessionLocal() as session:
         session.add(draft)
         await session.commit()
         await session.refresh(draft)
 
-    # Запускаем рассылку в фоне
-    asyncio.create_task(BroadcastService.send_task(bot, draft, users))
+    asyncio.create_task(
+        BroadcastService.send_task(bot, draft)
+    )
 
-    # Убираем черновик из редактирования
     BroadcastService.current_editing.pop(user_id, None)
 
     await callback.message.edit_text(
-        "✅ Рассылка запущена!\n\n"
-        f"Получателей: {len(users)}\n"
+        f"✅ Рассылка запущена!\n\n"
         f"ID рассылки: #{draft.id}\n\n"
-        "Отслеживать прогресс можно в разделе 'Активные рассылки'",
+        "Прогресс можно смотреть в разделе 'Активные рассылки'",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="📊 Активные рассылки", callback_data="broadcast_active")],
             [InlineKeyboardButton(text="⬅️ В главное меню", callback_data="broadcast_main")]

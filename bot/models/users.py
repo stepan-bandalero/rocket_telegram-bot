@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, Text, TIMESTAMP, func, ForeignKey
+from sqlalchemy import Column, BigInteger, Text, TIMESTAMP, func, ForeignKey, Boolean
 from bot.db import Base
 from sqlalchemy.orm import relationship
 
@@ -13,5 +13,6 @@ class User(Base):
     stars_balance = Column(BigInteger, default=0)  # <-- новое поле
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     referred_by = Column(BigInteger, ForeignKey("users.telegram_id"), nullable=True)
+    is_blocked = Column(Boolean, default=False, nullable=False)
 
     invoices = relationship("StarsInvoice", back_populates="user")

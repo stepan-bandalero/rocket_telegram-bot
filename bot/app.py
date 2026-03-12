@@ -31,7 +31,7 @@ async def main():
 
     # Middleware для сессии
     dp.update.middleware(DataBaseSessionMiddleware())
-    dp.update.middleware(RateLimiterMiddleware(rate=25, time_period=1))
+    dp.update.middleware(RateLimiterMiddleware(rate=30, time_period=1))
 
     # Роутеры
     dp.include_router(start.router)
