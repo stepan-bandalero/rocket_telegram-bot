@@ -66,6 +66,27 @@ CASES_DATA = {
     "case-42": {"name": "101 Roses", "cost_type": "stars", "cost_value": 99},
     "case-43": {"name": "Her Day", "cost_type": "ton", "cost_value": 16.99},
     "case-44": {"name": "Her Day", "cost_type": "stars", "cost_value": 1699},
+
+    "case-50": {"name": "Free Case", "cost_type": "free", "cost_value": 0},
+    "case-51": {"name": "Free Silver", "cost_type": "free", "cost_value": 0},
+    "case-52": {"name": "Free Gold", "cost_type": "free", "cost_value": 0},
+    "case-53": {"name": "Free Diamond", "cost_type": "free", "cost_value": 0},
+    "case-54": {"name": "Winters", "cost_type": "ton", "cost_value": 0.49},
+    "case-55": {"name": "Winters", "cost_type": "stars", "cost_value": 49},
+    "case-56": {"name": "Magic", "cost_type": "ton", "cost_value": 1.49},
+    "case-57": {"name": "Magic", "cost_type": "stars", "cost_value": 149},
+    "case-58": {"name": "Love you", "cost_type": "ton", "cost_value": 2.99},
+    "case-59": {"name": "Love you", "cost_type": "stars", "cost_value": 299},
+    "case-60": {"name": "Mystic", "cost_type": "ton", "cost_value": 16.99},
+    "case-61": {"name": "Mystic", "cost_type": "stars", "cost_value": 1699},
+    "case-62": {"name": "Advanced", "cost_type": "ton", "cost_value": 7.99},
+    "case-63": {"name": "Advanced", "cost_type": "stars", "cost_value": 799},
+    "case-64": {"name": "Newcomer", "cost_type": "ton", "cost_value": 12.99},
+    "case-65": {"name": "Newcomer", "cost_type": "stars", "cost_value": 1299},
+    "case-66": {"name": "Major", "cost_type": "ton", "cost_value": 22.99},
+    "case-67": {"name": "Major", "cost_type": "stars", "cost_value": 2299},
+    "case-68": {"name": "Business", "cost_type": "ton", "cost_value": 49.99},
+    "case-69": {"name": "Business", "cost_type": "stars", "cost_value": 4999},
 }
 
 # Словарь для преобразования режимов плинко

@@ -6,7 +6,6 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.fsm.context import FSMContext
 from sqlalchemy import select
 from aiogram.types import MessageEntity
-from handlers.admin_activity import CASES_DATA
 
 from bot.db import SessionLocal
 from bot.services.broadcast import BroadcastService
@@ -23,28 +22,90 @@ from bot.utils.broadcast_formatting import progress_bar, format_time_delta, decl
 
 router = Router()
 
+CASES_DATA = {
+    # "case-1": {"name": "Free 24h", "cost_type": "free", "cost_value": 0},
+    # "case-32": {"name": "Free", "cost_type": "free", "cost_value": 0},
+    # "case-3": {"name": "Farm", "cost_type": "ton", "cost_value": 0.1},
+    # "case-13": {"name": "Farm", "cost_type": "stars", "cost_value": 10},
+    # "case-33": {"name": "Farm Cap", "cost_type": "stars", "cost_value": 15},
+    # "case-22": {"name": "Heart", "cost_type": "ton", "cost_value": 1.2},
+    # "case-26": {"name": "Heart", "cost_type": "stars", "cost_value": 120},
+    # "case-23": {"name": "Arm", "cost_type": "ton", "cost_value": 1.8},
+    # "case-27": {"name": "Arm", "cost_type": "stars", "cost_value": 180},
+    # "case-5": {"name": "Oscar", "cost_type": "ton", "cost_value": 2.5},
+    # "case-15": {"name": "Oscar", "cost_type": "stars", "cost_value": 250},
+    # "case-6": {"name": "Perfume", "cost_type": "ton", "cost_value": 2.5},
+    # "case-16": {"name": "Perfume", "cost_type": "stars", "cost_value": 250},
+    # "case-30": {"name": "Winter", "cost_type": "ton", "cost_value": 4},
+    # "case-31": {"name": "Winter", "cost_type": "stars", "cost_value": 400},
+    # "case-7": {"name": "Magic", "cost_type": "ton", "cost_value": 5},
+    # "case-18": {"name": "Magic", "cost_type": "stars", "cost_value": 500},
+    # "case-24": {"name": "Snoop", "cost_type": "ton", "cost_value": 8},
+    # "case-28": {"name": "Snoop", "cost_type": "stars", "cost_value": 800},
+    # "case-9": {"name": "Ring", "cost_type": "ton", "cost_value": 10},
+    # "case-19": {"name": "Ring", "cost_type": "stars", "cost_value": 1000},
+    # "case-25": {"name": "Gem", "cost_type": "ton", "cost_value": 10},
+    # "case-29": {"name": "Gem", "cost_type": "stars", "cost_value": 1000},
+    # "case-8": {"name": "Cap", "cost_type": "ton", "cost_value": 25},
+    # "case-20": {"name": "Cap", "cost_type": "stars", "cost_value": 2500},
+    # "case-10": {"name": "VIP", "cost_type": "ton", "cost_value": 90},
+    # "case-21": {"name": "VIP", "cost_type": "stars", "cost_value": 9000},
+    # "case-35": {"name": "Peach", "cost_type": "ton", "cost_value": 1},
+    # "case-36": {"name": "Peach", "cost_type": "stars", "cost_value": 100},
+    # "case-39": {"name": "Durovs", "cost_type": "ton", "cost_value": 9.5},
+    # "case-40": {"name": "Durovs", "cost_type": "stars", "cost_value": 950},
+    # "case-41": {"name": "101 Roses", "cost_type": "ton", "cost_value": 0.99},
+    # "case-42": {"name": "101 Roses", "cost_type": "stars", "cost_value": 99},
+    # "case-43": {"name": "Her Day", "cost_type": "ton", "cost_value": 16.99},
+    # "case-44": {"name": "Her Day", "cost_type": "stars", "cost_value": 1699},
 
+    "case-50": {"name": "Free", "cost_type": "free", "cost_value": 0},
+    "case-51": {"name": "Free Silver", "cost_type": "free", "cost_value": 0},
+    "case-52": {"name": "Free Gold", "cost_type": "free", "cost_value": 0},
+    "case-53": {"name": "Free Diamond", "cost_type": "free", "cost_value": 0},
+    "case-55": {"name": "Winters", "cost_type": "stars", "cost_value": 49},
+    "case-57": {"name": "Magic", "cost_type": "stars", "cost_value": 149},
+    "case-59": {"name": "Love you", "cost_type": "stars", "cost_value": 299},
+    "case-61": {"name": "Some case", "cost_type": "stars", "cost_value": 1699},
+    "case-63": {"name": "Advanced", "cost_type": "stars", "cost_value": 799},
+    "case-65": {"name": "Newcomer", "cost_type": "stars", "cost_value": 1299},
+    "case-67": {"name": "Major", "cost_type": "stars", "cost_value": 2299},
+    "case-69": {"name": "Business", "cost_type": "stars", "cost_value": 4999},
+}
 
 CASE_EMOJIS = {
-    "case-1": "5206502842478638898",  # Free 24h
-    "case-32": "5406756500108501710", # Free
-    "case-13": "5323420626893963255", # Farm (stars)
-    "case-33": "5323393091858631247", # Farm Cap
-    "case-26": "5294476812221439592", # Heart (stars)
-    "case-27": "5319126771994490119", # Arm (stars)
-    "case-15": "5283006569481525574", # Oscar (stars)
-    "case-16": "5272007523308689132", # Perfume (stars)
-    "case-31": "5449449325434266744", # Winter (stars)
-    "case-18": "5325685779760962109", # Magic (stars)
-    "case-28": "5438222109123834742", # Snoop (stars)
-    "case-19": "5352734865315881645", # Ring (stars)
-    "case-29": "5395476176527447827", # Gem (stars)
-    "case-20": "5330191715850541636", # Cap (stars)
-    "case-21": "5850233704739246397", # VIP (stars)
-    "case-36": "5292092955048302153", # Peach (stars)
-    "case-40": "5424698365210297589", # Durovs (stars)
-    "case-42": "5276453866727038041", # 101 Roses
-    "case-44": "5289670279960762852", # Her Day
+    # "case-1": "5206502842478638898",  # Free 24h
+    # "case-32": "5406756500108501710", # Free
+    # "case-13": "5323420626893963255", # Farm (stars)
+    # "case-33": "5323393091858631247", # Farm Cap
+    # "case-26": "5294476812221439592", # Heart (stars)
+    # "case-27": "5319126771994490119", # Arm (stars)
+    # "case-15": "5283006569481525574", # Oscar (stars)
+    # "case-16": "5272007523308689132", # Perfume (stars)
+    # "case-31": "5449449325434266744", # Winter (stars)
+    # "case-18": "5325685779760962109", # Magic (stars)
+    # "case-28": "5438222109123834742", # Snoop (stars)
+    # "case-19": "5352734865315881645", # Ring (stars)
+    # "case-29": "5395476176527447827", # Gem (stars)
+    # "case-20": "5330191715850541636", # Cap (stars)
+    # "case-21": "5850233704739246397", # VIP (stars)
+    # "case-36": "5292092955048302153", # Peach (stars)
+    # "case-40": "5424698365210297589", # Durovs (stars)
+    # "case-42": "5276453866727038041", # 101 Roses
+    # "case-44": "5289670279960762852", # Her Day
+
+    "case-50": "5395653021805860507", # free case
+    "case-51": "5242392422427694330", # free silver
+    "case-52": "5346117566253276549", # free gold
+    "case-53": "5323710739049908981", # free diamond
+    "case-55": "5406820323322521867", # winters
+    "case-57": "5395779525772599106", # magic
+    "case-59": "5289670279960762852",# love you
+    "case-61": "5289749346013697883", # mystic case
+    "case-63": "5395547339840577666", # advanced
+    "case-65": "5294256463219291541", # newcomer
+    "case-67": "5283006569481525574", # major
+    "case-69": "5291963006517795791", # business
 
 }
 
