@@ -4,7 +4,7 @@ import asyncio
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
-from sqlalchemy import select
+from sqlalchemy import select, update
 from aiogram.types import MessageEntity
 
 from db import SessionLocal
@@ -18,6 +18,10 @@ from utils.keyboards import (
     broadcast_active_kb,
     broadcast_control_kb,
 )
+
+from models.broadcast_task import BroadcastTask
+from datetime import datetime, timedelta, timezone
+
 from utils.broadcast_formatting import progress_bar, format_time_delta, decline_word
 
 router = Router()
@@ -1188,8 +1192,7 @@ async def confirm_broadcast(callback: CallbackQuery, bot: Bot):
 @router.callback_query(F.data == "broadcast_active")
 async def broadcast_active_list(callback: CallbackQuery):
     """Список активных рассылок"""
-    from bot.models.broadcast_task import BroadcastTask
-    from sqlalchemy import select
+
 
     async with SessionLocal() as session:
         result = await session.execute(
@@ -1259,9 +1262,7 @@ async def broadcast_info(callback: CallbackQuery):
     """Информация о конкретной рассылке"""
     task_id = int(callback.data.replace("broadcast_info_", ""))
 
-    from bot.models.broadcast_task import BroadcastTask
-    from sqlalchemy import select
-    from datetime import datetime, timedelta, timezone
+
 
     async with SessionLocal() as session:
         result = await session.execute(select(BroadcastTask).where(BroadcastTask.id == task_id))
@@ -1351,8 +1352,6 @@ async def stop_broadcast(callback: CallbackQuery):
     """Остановка рассылки"""
     task_id = int(callback.data.replace("stop_broadcast_", ""))
 
-    from bot.models.broadcast_task import BroadcastTask
-    from sqlalchemy import select, update
 
     async with SessionLocal() as session:
         # Останавливаем рассылку
@@ -1373,8 +1372,7 @@ async def stop_broadcast(callback: CallbackQuery):
 @router.callback_query(F.data == "broadcast_history")
 async def broadcast_history(callback: CallbackQuery):
     """История рассылок"""
-    from bot.models.broadcast_task import BroadcastTask
-    from sqlalchemy import select
+
 
     async with SessionLocal() as session:
         result = await session.execute(
@@ -1431,8 +1429,7 @@ async def back_to_buttons_management(callback: CallbackQuery):
 @router.callback_query(F.data == "stop_all_broadcasts")
 async def stop_all_broadcasts(callback: CallbackQuery):
     """Остановка всех рассылок"""
-    from bot.models.broadcast_task import BroadcastTask
-    from sqlalchemy import select, update
+
 
     async with SessionLocal() as session:
         # Останавливаем все активные рассылки
