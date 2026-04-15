@@ -14,7 +14,8 @@ from models.star_invoice import StarsInvoice
 from models.user_spins import UserSpin
 from models.user_gift_upgrades import UserGiftUpgrade
 from models.plinko_games import PlinkoGame
-from models.WheelSpin import WheelSpin  # Добавьте этот импорт
+from models.WheelSpin import WheelSpin
+from models.fortune_spin import FortuneSpin
 
 def get_today_start_moscow_utc():
     """Возвращает начало сегодняшнего дня по МСК в UTC"""
@@ -50,6 +51,12 @@ async def get_games_statistics_all_time(session):
     )
     wheel_count = wheel_total.scalar() or 0
 
+    # Fortune spins
+    fortune_total = await session.execute(
+        select(func.count(FortuneSpin.id))
+    )
+    fortune_count = fortune_total.scalar() or 0
+
     # Звезды всего пополнено
     stars_total = await session.execute(
         select(func.sum(StarsInvoice.amount))
@@ -62,7 +69,8 @@ async def get_games_statistics_all_time(session):
         "upgrades_total": upgrades_count,
         "plinko_total": plinko_count,
         "wheel_total": wheel_count,  # Добавлено
-        "total_games": spins_count + upgrades_count + plinko_count + wheel_count,
+        "fortune_total": fortune_count,
+        "total_games": spins_count + upgrades_count + plinko_count + wheel_count + fortune_count,
         "total_stars": total_stars
     }
 
@@ -100,6 +108,13 @@ async def get_games_statistics_24h(session):
     )
     wheel_count_24h = wheel_24h.scalar() or 0
 
+    # Fortune spins за 24ч
+    fortune_24h = await session.execute(
+        select(func.count(FortuneSpin.id))
+        .where(FortuneSpin.created_at >= today_start_utc)
+    )
+    fortune_count_24h = fortune_24h.scalar() or 0
+
     # Звезды пополнено за 24ч
     stars_24h = await session.execute(
         select(func.sum(StarsInvoice.amount))
@@ -115,7 +130,8 @@ async def get_games_statistics_24h(session):
         "upgrades_24h": upgrades_count_24h,
         "plinko_24h": plinko_count_24h,
         "wheel_24h": wheel_count_24h,  # Добавлено
-        "total_games_24h": spins_count_24h + upgrades_count_24h + plinko_count_24h + wheel_count_24h,
+        "fortune_24h": fortune_count_24h,
+        "total_games_24h": spins_count_24h + upgrades_count_24h + plinko_count_24h + wheel_count_24h + fortune_count_24h,
         "stars_24h": stars_24h_sum
     }
 
@@ -281,6 +297,7 @@ async def send_admin_stats(message: Message, bot: Bot, session):
 ├─ ⚡ Апгрейды: <b>{stats['games_24h']['upgrades_24h']}</b>
 ├─ 🎯 Плинко: <b>{stats['games_24h']['plinko_24h']}</b>
 ├─ 🎪 Rocket Spin: <b>{stats['games_24h']['wheel_24h']}</b>
+├─ 🎲 Фортуна: <b>{stats['games_24h']['fortune_24h']}</b>
 ├─ 📊 Всего игр: <b>{stats['games_24h']['total_games_24h']}</b>
 └─ ⭐ Звезд пополнено: <b>{stats['games_24h']['stars_24h']}</b>
 
@@ -289,6 +306,7 @@ async def send_admin_stats(message: Message, bot: Bot, session):
 ├─ ⚡ Апгрейды: <b>{stats['games_all_time']['upgrades_total']}</b>
 ├─ 🎯 Плинко: <b>{stats['games_all_time']['plinko_total']}</b>
 ├─ 🎪 Rocket Spin: <b>{stats['games_all_time']['wheel_total']}</b>
+├─ 🎲 Фортуна: <b>{stats['games_all_time']['fortune_total']}</b>
 ├─ 📊 Всего игр: <b>{stats['games_all_time']['total_games']}</b>
 └─ ⭐ Звезд всего: <b>{stats['games_all_time']['total_stars']}</b>
 

@@ -17,7 +17,9 @@ from models.user_gift_upgrades import UserGiftUpgrade
 from models.user_gift import UserGift
 from models.plinko_games import PlinkoGame
 from models.star_invoice import StarsInvoice
-from models.WheelSpin import WheelSpin  # Добавьте этот импорт
+from models.WheelSpin import WheelSpin
+from models.fortune_spin import FortuneSpin
+from models.gift_catalog import GiftCatalog
 
 import html
 
@@ -27,7 +29,17 @@ PAGE_SIZE = 8  # элементов на странице
 MSK = timezone(timedelta(hours=3))
 
 
-
+# Названия режимов Фортуны (mode_id -> название)
+FORTUNE_MODE_NAMES = {
+    0: "25 Stars",
+    1: "99 Stars",
+    2: "Dragon Spin",
+    3: "450 Stars",
+    4: "799 Stars",
+    5: "999 Stars",
+    6: "1500 Stars",
+    7: "Mystery Spin",
+}
 
 # Создадим словарь для кейсов из предоставленных данных
 CASES_DATA = {
@@ -179,9 +191,20 @@ async def get_user_activity_data(
         )
         total_stmt = select(func.count(WheelSpin.id)).where(WheelSpin.user_id == user_id)
 
+    elif activity_type == "fortune":
+        stmt = (
+            select(FortuneSpin, GiftCatalog)
+            .outerjoin(GiftCatalog, FortuneSpin.won_gift_catalog_id == GiftCatalog.id)
+            .where(FortuneSpin.user_id == user_id)
+            .order_by(desc(FortuneSpin.created_at))
+            .offset(offset)
+            .limit(PAGE_SIZE)
+        )
+        total_stmt = select(func.count(FortuneSpin.id)).where(FortuneSpin.user_id == user_id)
+
     result = await session.execute(stmt)
 
-    if activity_type in ["upgrades", "plinko"]:
+    if activity_type in ["upgrades", "plinko", "fortune"]:
         # Для апгрейдов и плинко возвращаем tuple
         items = result.all()
     else:
@@ -231,12 +254,17 @@ async def get_user_activity_data(
             "success_rate": round((success_spins / total_count * 100), 2) if total_count > 0 else 0
         }
 
+    # После получения total_count, добавим:
+    if activity_type == "fortune":
+        total_prize_stmt = select(func.sum(GiftCatalog.price_cents)).join(
+            FortuneSpin, FortuneSpin.won_gift_catalog_id == GiftCatalog.id
+        ).where(FortuneSpin.user_id == user_id)
+        total_prize_cents = (await session.execute(total_prize_stmt)).scalar() or 0
+        extra_info = {"total_prize_ton": total_prize_cents}
+
     return items, total_count, activity_type, extra_info
 
 
-
-
-# --- Обновленная функция для форматирования сообщения активности ---
 
 
 # --- Вспомогательные функции для форматирования ---
@@ -246,11 +274,7 @@ def format_prize_amount(prize_amount, case_id: str) -> str:
         return "0"
 
     try:
-        # Проверяем, является ли prize_amount Decimal
-        if isinstance(prize_amount, Decimal):
-            amount_float = float(prize_amount)
-        else:
-            amount_float = float(prize_amount)
+        amount_float = float(prize_amount)
 
         # Получаем информацию о кейсе
         case_info = CASES_DATA.get(case_id, {})
@@ -293,13 +317,12 @@ def format_cost_value(case_id: str) -> str:
         return "Неизвестно"
 
 
-# --- Форматирование элементов активности (обновленная версия) ---
+# --- Форматирование элементов активности ---
 
-# --- Обновленная функция форматирования элементов активности ---
 def format_activity_item(index: int, item, activity_type: str) -> str:
     """Форматировать элемент активности в строку"""
     # Форматируем дату
-    if activity_type in ["upgrades", "plinko"]:
+    if activity_type in ["upgrades", "plinko", "fortune"]:
         dt = item[0].created_at
     else:
         dt = item.created_at
@@ -511,6 +534,33 @@ def format_activity_item(index: int, item, activity_type: str) -> str:
 
         )
 
+    elif activity_type == "fortune":
+        spin = item[0]
+        gift = item[1] if len(item) > 1 else None
+
+        mode_name = FORTUNE_MODE_NAMES.get(spin.mode_id, f"Режим {spin.mode_id}")
+
+        # Стоимость спина
+        cost_display = f"{spin.spin_cost_cents} ⭐"
+
+        # Выигрыш
+        if gift:
+            prize_value_ton = gift.price_cents
+            prize_display = f"{prize_value_ton} ⭐"
+            gift_name = gift.title
+        else:
+            prize_display = "❌ Нет выигрыша"
+            gift_name = "—"
+
+        return (
+            f"<b>#{index}</b> 🎲 <b>Фортуна</b> ({mode_name})\n"
+            f"┣ 💰 <b>Стоимость:</b> {cost_display}\n"
+            f"┣ 🎁 <b>Выигрыш:</b> {gift_name}\n"
+            f"┣ ⭐ <b>Сумма:</b> {prize_display}\n"
+            f"┗ 🕒 <i>{formatted_time}</i>\n"
+            f"┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄"
+        )
+
 
 # --- Обновленная функция для форматирования сообщения активности ---
 def format_activity_message(
@@ -528,7 +578,8 @@ def format_activity_message(
         "upgrades": "⚡ Апгрейды подарков",
         "plinko": "🎯 Игры в плинко",
         "stars": "⭐ Пополнения звездами",
-        "wheel": "🎪 Rocket Spin"  # Добавлено
+        "wheel": "🎪 Rocket Spin",
+        "fortune": "🎲 Фортуна"
     }
 
     type_name = type_names.get(activity_type, "Активность")
@@ -553,6 +604,9 @@ def format_activity_message(
         header += f"💰 <b>Общая сумма ставок:</b> {extra_info.get('total_bet', 0):.2f} TON\n"
         header += f"✅ <b>Успешных спинов:</b> {extra_info.get('success_spins', 0)}\n"
         header += f"📊 <b>Процент успеха:</b> {extra_info.get('success_rate', 0)}%\n"
+
+    elif activity_type == "fortune" and extra_info and "total_prize_ton" in extra_info:
+        header += f"💰 <b>Общий выигрыш (Stars):</b> {extra_info['total_prize_ton']}\n"
 
     header += "\n"
 
@@ -613,7 +667,8 @@ def build_activity_keyboard(
         ("🎡 Кейсы", "spins"),
         ("⚡ Апгрейды", "upgrades"),
         ("🎯 Плинко", "plinko"),
-        ("🎪 Rocket Spin", "wheel"),  # Добавлено
+        ("🎪 Rocket Spin", "wheel"),
+        ("🎲 Фортуна", "fortune"),
         ("⭐ Звезды", "stars")
     ]
 
@@ -659,38 +714,16 @@ def build_activity_type_keyboard(user_id: int) -> InlineKeyboardMarkup:
     """Клавиатура для выбора типа активности"""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(
-                text="🎡 Кейсы",
-                callback_data=f"act_type:{user_id}:spins:1"
-            ),
-            InlineKeyboardButton(
-                text="⚡ Апгрейды",
-                callback_data=f"act_type:{user_id}:upgrades:1"
-            )
+            InlineKeyboardButton(text="🎡 Кейсы", callback_data=f"act_type:{user_id}:spins:1"),
+            InlineKeyboardButton(text="⚡ Апгрейды", callback_data=f"act_type:{user_id}:upgrades:1")
         ],
         [
-            InlineKeyboardButton(
-                text="🎪 Rocket Spin",  # Добавлено
-                callback_data=f"act_type:{user_id}:wheel:1"
-            )
+            InlineKeyboardButton(text="🎪 Rocket Spin", callback_data=f"act_type:{user_id}:wheel:1"),
+            InlineKeyboardButton(text="🎲 Фортуна", callback_data=f"act_type:{user_id}:fortune:1")  # добавлено
         ],
         [
-            InlineKeyboardButton(
-                text="🎯 Плинко",
-                callback_data=f"act_type:{user_id}:plinko:1"
-            ),
-            InlineKeyboardButton(
-                text="⭐ Звезды",
-                callback_data=f"act_type:{user_id}:stars:1"
-            ),
-
-        ],
-        [
-
-            InlineKeyboardButton(
-                text="📊 Статистика",
-                callback_data=f"act_stats:{user_id}"
-            )
+            InlineKeyboardButton(text="🎯 Плинко", callback_data=f"act_type:{user_id}:plinko:1"),
+            InlineKeyboardButton(text="⭐ Звезды", callback_data=f"act_type:{user_id}:stars:1"),
         ]
     ])
     return keyboard
@@ -798,6 +831,12 @@ async def get_user_statistics(session: AsyncSession, user_id: int, user: User) -
     )
     wheel = wheel_count.scalar_one() or 0
 
+    # Количество игр в Фортуну
+    fortune_count = await session.execute(
+        select(func.count(FortuneSpin.id)).where(FortuneSpin.user_id == user_id)
+    )
+    fortune = fortune_count.scalar_one() or 0
+
     # Сумма пополненных звезд
     stars_sum = await session.execute(
         select(func.sum(StarsInvoice.amount)).where(
@@ -820,7 +859,8 @@ async def get_user_statistics(session: AsyncSession, user_id: int, user: User) -
         f"├─ 🎡 Кейсов: <b>{spins}</b>\n"
         f"├─ ⚡ Апгрейдов: <b>{upgrades}</b>\n"
         f"├─ 🎯 Игр в плинко: <b>{plinko}</b>\n"
-        f"├─ 🎪 Rocket Spins: <b>{wheel}</b>\n"  # Добавлено
+        f"├─ 🎪 Rocket Spins: <b>{wheel}</b>\n"
+        f"├─ 🎲 Фортуна: <b>{fortune}</b>\n"
         f"├─ ⭐ Звезд пополнено: <b>{stars}</b>\n"
         f"└─ 💰 Транзакций: <b>{transactions}</b>"
     )
