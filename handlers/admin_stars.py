@@ -10,6 +10,7 @@ from models.users import User
 from models.user_transaction import UserTransaction  # ✅ модель транзакций
 import re
 import time
+from uuid import uuid4
 
 router = Router()
 
