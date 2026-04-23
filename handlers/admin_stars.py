@@ -7,7 +7,8 @@ from sqlalchemy import func
 from config import settings
 from db import SessionLocal
 from models.users import User
-from models.user_transaction import UserTransaction  # ✅ модель транзакций
+from models.user_transaction import UserTransaction
+from models.star_invoice import StarsInvoice
 import re
 import time
 from uuid import uuid4
