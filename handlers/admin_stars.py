@@ -2,6 +2,7 @@ from aiogram import F, Router
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy import func
 
 from config import settings
 from db import SessionLocal
@@ -62,6 +63,17 @@ async def manage_balance(message: Message):
         # Обновляем баланс
         if operator == "+":
             new_balance = old_balance + amount
+            # --- СОЗДАЁМ ЗАПИСЬ В stars_invoices ---
+            payload = f"admin_{user_id}_{int(time.time())}_{uuid4().hex[:8]}"
+            invoice = StarsInvoice(
+                payload=payload,
+                telegram_id=user_id,
+                amount=amount,
+                status="paid",
+                processed_at=func.now()
+            )
+            session.add(invoice)
+            # -------------------------------------
         elif operator == "-":
             if old_balance < amount:
                 await message.answer(

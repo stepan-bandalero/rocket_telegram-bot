@@ -770,6 +770,7 @@ async def webapp_bot_params(callback: CallbackQuery, state: FSMContext):
     # Клавиатура со страницами
     pages = [
         ("cases", "📦 Cases"),
+        ("fortune", "🎡 Fortune"),
         ("staking", "📈 Staking"),
         ("plinko", "🎰 Plinko"),
         ("spin", "🎡 Spin"),
