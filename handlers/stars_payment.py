@@ -162,12 +162,12 @@ async def handle_successful_payment(message: Message):
             return
 
         # Бонус 15% от суммы пополнения
-        bonus = (invoice.amount * 15) // 100  # целые звёзды
-        total = invoice.amount + bonus
-        user.stars_balance = (user.stars_balance or 0) + total
+        # bonus = (invoice.amount * 15) // 100  # целые звёзды
+        # total = invoice.amount + bonus
+        # user.stars_balance = (user.stars_balance or 0) + total
 
         # Начисляем звезды пользователю
-        # user.stars_balance = (user.stars_balance or 0) + invoice.amount
+        user.stars_balance = (user.stars_balance or 0) + invoice.amount
         invoice.status = "paid"
         invoice.processed_at = func.now()
 
@@ -192,5 +192,5 @@ async def handle_successful_payment(message: Message):
             )
 
 
-    # await message.answer(f"✅ Оплата успешна! Вам начислено {invoice.amount} ⭐")
-    await message.answer(f"✅ Оплата успешна! Начислено {total} ⭐ (из них {bonus} ⭐ бонус 15%)")
+    await message.answer(f"✅ Оплата успешна! Вам начислено {invoice.amount} ⭐")
+    # await message.answer(f"✅ Оплата успешна! Начислено {total} ⭐ (из них {bonus} ⭐ бонус 15%)")
