@@ -6,6 +6,7 @@ from typing import Optional
 from aiogram import Router, F
 from aiogram.types import Message
 from redis.asyncio import Redis
+from aiogram.filters import Command
 
 from config import settings  # ваши настройки
 
@@ -42,7 +43,7 @@ def format_mines_grid(grid_size: int, mines: list[int], opened: Optional[list[in
     return "\n".join(rows)
 
 
-@router.message(F.text.startswith("/mine"))
+@router.message(Command("mine"))
 async def cmd_mine(message: Message):
     # Проверка на админа
     if message.from_user.id not in settings.admins:
