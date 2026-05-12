@@ -42,6 +42,39 @@ def format_time(ts: str) -> str:
     except:
         return ts
 
+def format_top_wins(top_wins: list[dict], with_gift: bool = False) -> str:
+    """Возвращает HTML-строку с топ‑5 выигрышей в виде дерева."""
+    if not top_wins:
+        return ""
+
+    lines = []
+    for i, win in enumerate(top_wins, 1):
+        uid = str(win.get('user_id', ''))
+        name = win.get('username') or '—'
+        currency = win.get('currency', '')
+        bet = money(win.get('bet', 0))
+        payout = money(win.get('payout', 0))
+        time_str = format_time(win.get('created_at', ''))
+
+        gift_line = ""
+        if with_gift and win.get('gift_id'):
+            gift_line = f"├ 🎁: {win['gift_id']}\n"
+
+        lines.append(
+            f"<b>#{i}</b>\n"
+            f"├ ID: <code>{uid}</code>\n"
+            f"├ User: @{name}\n"
+            f"├ Win: {payout} {currency}\n"
+            f"├ Bet: {bet} {currency}\n"
+            f"{gift_line}"
+            f"└ Time: {time_str}"
+        )
+
+    return (
+        "<b>🏆 Топ-5 выигрышей сегодня</b>\n"
+        + "\n\n".join(lines)
+    )
+
 def format_section(title: str, rows: list[tuple[str, str]]) -> str:
     if not rows:
         return f"<b>{title}</b>\n<pre>(нет данных)</pre>"
@@ -123,6 +156,7 @@ async def cmd_cups(message: Message, bot: Bot):
     all_time_block = format_section("📊 За всё время", all_time_rows)
 
     # --- Блок 3: Сегодняшняя статистика ---
+    # --- Сегодняшняя статистика (без топа) ---
     today_rows = [
         ("👤 Игроков", fmt(today['users'])),
         ("🎲 Игр", fmt(today['games'])),
@@ -135,29 +169,17 @@ async def cmd_cups(message: Message, bot: Bot):
         ("Средние показатели", ""),
         ("• Ставка", money(today['avg_bet'])),
         ("• Выплата", money(today['avg_payout'])),
+        ("", ""),
+        ("Рекорды", ""),
+        ("• Max win", money(today['max_win'])),
     ]
-
-    # Топ-5 выигрышей сегодня
-    top_wins = today.get('top_wins', [])
-    if top_wins:
-        today_rows.append(("", ""))
-        today_rows.append(("🏆 Топ-5 выигрышей сегодня", ""))
-        for i, win in enumerate(top_wins, 1):
-            # Форматируем строку для каждого игрока
-            name = (win['username'] | "") + str(win['user_id'])
-            bet = money(win['bet'])
-            currency = win['currency']
-            payment_info = f"{bet} {currency}"
-            if win['gift_id']:
-                payment_info += f" (🎁 {win['gift_id']})"
-            time_str = format_time(win['created_at'])
-            # Собираем в одну строку: #1. Имя: ставка, выигрыш, время
-            win_str = f"  {name}  │ выигрыш {money(win['payout'])} {currency}  │ ставка {payment_info}  │ {time_str}"
-            today_rows.append((f"#{i}", win_str))
-    else:
-        today_rows.append(("🏆 Топ-5 выигрышей сегодня", "нет данных"))
-
     today_block = format_section("📅 Сегодня (МСК)", today_rows)
 
+    # --- Топ-5 с gift_id ---
+    top_block = format_top_wins(today.get('top_wins', []), with_gift=True)
+
     full_message = f"{server_block}\n\n{all_time_block}\n\n{today_block}"
+    if top_block:
+        full_message += f"\n\n{top_block}"
+
     await message.answer(full_message, parse_mode="HTML")
