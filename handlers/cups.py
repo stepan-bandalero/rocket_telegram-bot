@@ -10,23 +10,20 @@ from aiogram import Bot
 
 from config import settings
 from db import SessionLocal
-from services.mines import MinesAnalyticsService
+from services.cups import CupsAnalyticsService
 
 router = Router()
-HEALTH_URL = "https://rocket-app.link/mines/health"
+HEALTH_URL = "https://rocket-app.link/cups/health"
 MOSCOW_TZ = timezone(timedelta(hours=3))
 
 
-# ------------------------------------------------------------
-# Форматирование чисел
-# ------------------------------------------------------------
+# --- Форматирование чисел и дат (без изменений) ---
 def fmt(n: float | int) -> str:
     if n is None:
         return "—"
     return f"{n:,.0f}".replace(",", " ")
 
-def money(n: float | int) -> str:
-    return fmt(n)
+money = fmt
 
 def pct(n: float) -> str:
     if n is None:
@@ -44,7 +41,6 @@ def format_time(ts: str) -> str:
         return dt.astimezone(MOSCOW_TZ).strftime("%d.%m %H:%M")
     except:
         return ts
-
 
 def format_section(title: str, rows: list[tuple[str, str]]) -> str:
     if not rows:
@@ -71,17 +67,17 @@ async def get_health():
 
 
 # ------------------------------------------------------------
-# Команда /mines
+# Команда /cups
 # ------------------------------------------------------------
-@router.message(Command("mines"))
-async def cmd_mines(message: Message, bot: Bot):
+@router.message(Command("cups"))
+async def cmd_cups(message: Message, bot: Bot):
     if message.from_user.id not in settings.admins:
         return
 
     health, latency = await get_health()
 
     async with SessionLocal() as session:
-        service = MinesAnalyticsService(session)
+        service = CupsAnalyticsService(session)
         all_time = await service.global_stats()
 
         msk_midnight = datetime.now(MOSCOW_TZ).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -89,7 +85,7 @@ async def cmd_mines(message: Message, bot: Bot):
         today = await service.today_stats(utc_start)
 
     if not health:
-        await message.answer("🔴 Mines engine offline")
+        await message.answer("🔴 Cups engine offline")
         return
 
     # --- Блок 1: Состояние сервера ---
@@ -120,15 +116,9 @@ async def cmd_mines(message: Message, bot: Bot):
         ("Средние показатели", ""),
         ("• Ставка", money(all_time['avg_bet'])),
         ("• Выплата", money(all_time['avg_payout'])),
-        ("• Открыто", f"{all_time['avg_safe_hits']:.1f}"),
-        ("• Мины", f"{all_time['avg_mines']:.1f}"),
-        ("• Поле", f"{all_time['avg_grid']:.1f}"),
         ("", ""),
         ("Рекорды", ""),
         ("• Max win", money(all_time['max_win'])),
-        ("• Max bet", money(all_time['max_bet'])),
-        ("• Max X", f"x{all_time['max_multiplier']:.2f}"),
-        ("• Avg X", f"x{all_time['avg_multiplier']:.2f}"),
     ]
     all_time_block = format_section("📊 За всё время", all_time_rows)
 
@@ -145,30 +135,25 @@ async def cmd_mines(message: Message, bot: Bot):
         ("Средние показатели", ""),
         ("• Ставка", money(today['avg_bet'])),
         ("• Выплата", money(today['avg_payout'])),
-        ("• Открыто", f"{today['avg_safe_hits']:.1f}"),
-        ("• Мины", f"{today['avg_mines']:.1f}"),
-        ("• Поле", f"{today['avg_grid']:.1f}"),
-        ("", ""),
-        ("Рекорды", ""),
-        ("• Max win", money(today['max_win'])),
-        ("• Max bet", money(today['max_bet'])),
-        ("• Max X", f"x{today['max_multiplier']:.2f}"),
     ]
 
-    # --- Добавляем топ-5 выигрышей сегодня ---
+    # Топ-5 выигрышей сегодня
     top_wins = today.get('top_wins', [])
     if top_wins:
         today_rows.append(("", ""))
         today_rows.append(("🏆 Топ-5 выигрышей сегодня", ""))
         for i, win in enumerate(top_wins, 1):
-            name = win['username'] or str(win['user_id'])
-            bet_str = money(win['bet'])
+            # Форматируем строку для каждого игрока
+            name = (win['username'] | "") + str(win['user_id'])
+            bet = money(win['bet'])
             currency = win['currency']
-            payout_str = money(win['payout'])
+            payment_info = f"{bet} {currency}"
+            if win['gift_id']:
+                payment_info += f" (🎁 {win['gift_id']})"
             time_str = format_time(win['created_at'])
-            # Формат: #1 Имя: выигрыш ... | ставка ... | время
-            win_line = f"  {name}  │ выигрыш {payout_str} {currency}  │ ставка {bet_str} {currency}  │ {time_str}"
-            today_rows.append((f"#{i}", win_line))
+            # Собираем в одну строку: #1. Имя: ставка, выигрыш, время
+            win_str = f"  {name}  │ выигрыш {money(win['payout'])} {currency}  │ ставка {payment_info}  │ {time_str}"
+            today_rows.append((f"#{i}", win_str))
     else:
         today_rows.append(("🏆 Топ-5 выигрышей сегодня", "нет данных"))
 

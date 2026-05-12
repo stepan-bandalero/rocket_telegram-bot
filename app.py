@@ -11,7 +11,7 @@ from aiogram.client.default import DefaultBotProperties
 from config import settings
 from middlewares.database import DataBaseSessionMiddleware
 from middlewares.rate_limiter import RateLimiterMiddleware
-from handlers import start, admin, admin_promos, admin_channels, admin_broadcast, admin_users, admin_gift, admin_balance, admin_activity, admin_stars, system_stats, gift_payout, ton_requests, gift_promos, transactions, admin_user, stars_payment, lottery, stars_stat, admin_subs, admin_mine, mines
+from handlers import start, admin, admin_promos, admin_channels, admin_broadcast, admin_users, admin_gift, admin_balance, admin_activity, admin_stars, system_stats, gift_payout, ton_requests, gift_promos, transactions, admin_user, stars_payment, lottery, stars_stat, admin_subs, admin_mine, mines, cups
 
 
 logging.basicConfig(
@@ -55,6 +55,7 @@ async def main():
     dp.include_router(admin_subs.router)
     dp.include_router(admin_mine.router)
     dp.include_router(mines.router)
+    dp.include_router(cups.router)
 
 
 
